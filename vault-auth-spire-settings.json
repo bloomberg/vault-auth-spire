@@ -1,0 +1,19 @@
+{
+  "trustsource": {
+    "file": {
+      "domains": {
+        "spiffe://dev.bloomberg.com": "dev_ca",
+        "spiffe://prod.bloomberg.com": "prod_ca"
+      }
+    }
+  },
+
+  "log": {
+    "filename": "/tmp/vault-auth-spire.log",
+    "level": "INFO",
+    "maxSize": 10,
+    "maxBackups": 4,
+    "maxAge": 14,
+    "compress": true
+  }
+}
