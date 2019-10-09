@@ -14,12 +14,12 @@
  ** limitations under the License.
  */
 
-package main
+package common
 
 import (
 	"crypto/x509"
 )
 
 type SvidValidator interface {
-	Validate(svid string) (*x509.Certificate, error)
+	Validate(svid string) ([]*x509.Certificate, error)
 }

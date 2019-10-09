@@ -14,7 +14,7 @@
  ** limitations under the License.
  */
 
-package main
+package common
 
 import (
 	"crypto/x509"
@@ -66,55 +66,65 @@ func (validator * SvidDiskValidator) loadCertificatesFromDisk(path string) ([]*x
 		return nil, errors.New("Unable to open " + path + " for reading")
 	}
 
+	certs, err := validator.constructCertificatesFromPem(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(certs) == 0 {
+		return nil, errors.New("Did not find any certificates in " + path)
+	}
+
+	return certs, nil
+}
+
+func (validator *SvidDiskValidator) constructCertificatesFromPem(pemData []byte) ([]*x509.Certificate, error){
 	// Read all the pem blocks from the full file data, decode will return 1 at a time and nil when complete
 	var pemBlocks []*pem.Block
 	for {
-		pemBlock, rest := pem.Decode(data)
+		pemBlock, rest := pem.Decode(pemData)
 
-		if pemBlock == nil {
+		if pemBlock != nil {
+			pemBlocks = append(pemBlocks, pemBlock)
+		}
+
+		if len(rest) == 0 {
 			break
 		}
 
-		data = rest
+		pemData = rest
 		pemBlocks = append(pemBlocks, pemBlock)
-	}
-
-	if len(pemBlocks) == 0 {
-		return nil, errors.New("Did not find any certificates in " + path)
 	}
 
 	var certs []*x509.Certificate
 	for idx, block := range pemBlocks{
 		if cert, err := x509.ParseCertificate(block.Bytes); err != nil {
-			return nil, errors.New("Unable to parse certificate from " + path + " - issue with pem block at index " + strconv.Itoa(idx) + " - " + err.Error())
+			return nil, errors.New("Unable to parse certificate from pem - issue with pem block at index " + strconv.Itoa(idx) + " - " + err.Error())
 		} else {
 			certs = append(certs, cert)
 		}
 	}
 
 	return certs, nil
+
 }
 
-func (validator *SvidDiskValidator) Validate(svid string) (*x509.Certificate, error){
+func (validator *SvidDiskValidator) Validate(svid string) ([]*x509.Certificate, error){
 
 	logrus.Info(svid)
 
-	// CHECK: should we accept SVIDs with multiple pem blocks in them? I don't think so, but
-	// open for discussion
-	block, _ := pem.Decode([]byte(svid))
-	if block == nil {
-		return nil, errors.New("Unable to decode certificate PEM from provided SVID")
-	}
-
-	svidCert, err := x509.ParseCertificate(block.Bytes)
+	svidCerts, err := validator.constructCertificatesFromPem([]byte(svid))
 	if err != nil {
-		return nil, errors.New("Unable to parse certificate from provided SVID")
+		return nil, errors.New("Failed to parse SVID - " + err.Error())
 	}
 
-	_, err = spiffe.VerifyPeerCertificate([]*x509.Certificate{svidCert}, validator.domainCertPools, spiffe.ExpectAnyPeer())
+	if len(svidCerts) == 0 {
+		return nil, errors.New("SVID is invalid")
+	}
+
+	_, err = spiffe.VerifyPeerCertificate(svidCerts, validator.domainCertPools, spiffe.ExpectAnyPeer())
 	if nil != err {
 		return nil, errors.New("Unable to validate SVID against trust chain - " + err.Error())
 	}
 
-	return svidCert, nil
+	return svidCerts, nil
 }

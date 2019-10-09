@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 	"go.dev.bloomberg.com/bbgo/go-logrus"
 	"strings"
+	"vault-auth-spire/internal/common"
 
 	"log"
 	"os"
@@ -73,7 +74,7 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 		return nil, err
 	}
 
-	if err := initializeLogger(settings); err != nil {
+	if err := common.InitializeLogger(settings); err != nil {
 		return nil, errors.New("vault-auth-spire: Failed to initialize logging - " + err.Error())
 	}
 
@@ -104,7 +105,7 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 	}
 
 	if nil != settings.SourceOfTrust.File {
-		validator, err := NewSvidDiskValidator(settings.SourceOfTrust.File)
+		validator, err := common.NewSvidDiskValidator(settings.SourceOfTrust.File)
 		if err != nil {
 			return nil, errors.New("vault-auth-spire: Failed to initialize SVID validator - " + err.Error())
 		}
@@ -124,7 +125,7 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 }
 
 // parseSettings uses the expected `settings-file` CLI argument to load a file containing settings for this plugin.
-func parseSettings() (*Settings, error) {
+func parseSettings() (*common.Settings, error) {
 	var settingsFilePath string
 
 	// Arguments specific to vault-auth-plugin
@@ -132,7 +133,7 @@ func parseSettings() (*Settings, error) {
 	settingsFlags.StringVar(&settingsFilePath, "settings-file", "", "Path to plugin settings")
 	settingsFlags.Parse(os.Args[1:])
 
-	if settings, err := ReadSettings(settingsFilePath); err != nil {
+	if settings, err := common.ReadSettings(settingsFilePath); err != nil {
 		return nil, errors.New("vault-auth-spire: Failed to read settings from '" + settingsFilePath + "' - " + err.Error())
 	} else {
 		return settings, nil
@@ -142,8 +143,8 @@ func parseSettings() (*Settings, error) {
 // spirePlugin is-a framework.Backend as per the embedded unnamed anon field
 type spirePlugin struct {
 	*framework.Backend
-	settings *Settings
-	validator SvidValidator
+	settings  *common.Settings
+	validator common.SvidValidator
 }
 
 // pathAuthLogin is called when something attempts to login to Vault using this plugin's method (ie, spire). A login request
@@ -156,16 +157,18 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 		return nil, logical.ErrInvalidRequest
 	}
 
-	svidCert, err := spirePlugin.validator.Validate(svid)
+	svidCerts, err := spirePlugin.validator.Validate(svid)
 	if err != nil {
 		logrus.Debug("Provided svid could not be verified - " + err.Error())
 		return nil, logical.ErrPermissionDenied
 	}
 
 	uris := []string{}
-	for _, uri := range svidCert.URIs {
-		logrus.Info("Found URI: " + uri.String())
-		uris = append(uris, uri.String())
+	for _, svidCert := range svidCerts {
+		for _, uri := range svidCert.URIs {
+			logrus.Info("Found URI: " + uri.String())
+			uris = append(uris, uri.String())
+		}
 	}
 
 	logrus.Info("The cert was verified")

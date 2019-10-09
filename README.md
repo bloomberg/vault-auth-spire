@@ -1,7 +1,7 @@
 # SPIRE Vault Authentication Plugin
 
-Put project description here.
-
+SPIRE Vault Authentication Plugin is an authentication plugin for [Hashicorp Vault](https://www.vaultproject.io) which allows logging into Vault using a Spire provided SVID.
+ 
 ## Menu
 
 - [Rationale](#rationale)
@@ -14,6 +14,41 @@ Put project description here.
 - [Security Vulnerability Reporting](#security-vulnerability-reporting)
 
 ## Rationale
+
+This plugin exists to allow Spire authenticated workloads to authenticate with Vault using their Spire provided SVID, and then interact with Vault as they would if they authenticated with Vault via any other Vault supported authentication mechanism. 
+
+The plugin has two operating modes: connected or disconnected from Spire.
+
+## Operating Modes
+
+### Connected to Spire
+
+_Not yet implemented_
+
+When configured to run in connected mode the plugin will use `workload.X509SVIDClient` to receive from Spire (via the agent) the various trust bundles to verify SVIDs against. The plugin will be notified, in relative real-time, of any changes to trust bundles.
+
+### Disconnected from Spire
+
+When configured to run in disconnected mode the plugin needs to be provided with all the trust domains and their associated CAs. These will then be used to verify SVIDs against.
+
+To run in this mode the following block should exist in the plugin's setting file.
+
+```json
+{
+  ...other settings...,
+
+  "trustsource": {
+    "file": {
+      "domains": {
+        "spiffe://some.domain.com": ["/path/to/ca/for/domain.crt", "/path/to/secondary/ca/for/domain.crt"],
+        "spiffe://some.otherdomain.com": ["/path/to/ca/for/otherdomain.crt"]
+      }
+    }
+  }
+}
+```
+
+In order to support certificate rotation each domain can be validated against multiple CA files. Also, each CA file can themselves contain multiple CA blocks. This allows users to choose what is easiest for them - a distinct files for each CA or a single file with all CAs. All will be read and used to verify SVIDs.
 
 ## Quick Start
 

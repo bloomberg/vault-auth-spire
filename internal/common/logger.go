@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"errors"
@@ -38,7 +38,7 @@ func (u utcFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	return u.formatter.Format(e)
 }
 
-func initializeLogger(settings *Settings) error {
+func InitializeLogger(settings *Settings) error {
 	logDirectory := filepath.Dir(settings.Log.Filename)
 	if err := os.MkdirAll(logDirectory, 0755); err != nil {
 		return errors.New("Unable to create log directory " + logDirectory + " - " + err.Error())
