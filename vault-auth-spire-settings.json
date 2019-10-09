@@ -2,15 +2,15 @@
   "trustsource": {
     "file": {
       "domains": {
-        "spiffe://dev.bloomberg.com": "dev_ca",
-        "spiffe://prod.bloomberg.com": "prod_ca"
+        "spiffe://dev.bloomberg.com": "/tmp/dummy_upstream_ca.crt",
+        "spiffe://prod.bloomberg.com": "/tmp/dummy_upstream_ca.crt"
       }
     }
   },
 
   "log": {
     "filename": "/tmp/vault-auth-spire.log",
-    "level": "INFO",
+    "level": "DEBUG",
     "maxSize": 10,
     "maxBackups": 4,
     "maxAge": 14,
