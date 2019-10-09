@@ -26,47 +26,47 @@ import (
 	"strconv"
 )
 
-func NewSvidDiskValidator(settings *FileSourceOfTrustSettings) (*SvidDiskValidator, error){
-	validator := new(SvidDiskValidator)
+func NewSvidDiskVerifier(settings *FileSourceOfTrustSettings) (*SvidDiskVerifier, error){
+	verifier := new(SvidDiskVerifier)
 
-	return validator.initialize(settings)
+	return verifier.initialize(settings)
 }
 
-type SvidDiskValidator struct {
+type SvidDiskVerifier struct {
 	domainCertPools map[string]*x509.CertPool
 }
 
-func (validator *SvidDiskValidator) initialize(settings *FileSourceOfTrustSettings) (*SvidDiskValidator, error) {
-	validator.domainCertPools = make(map[string]*x509.CertPool)
+func (verifier *SvidDiskVerifier) initialize(settings *FileSourceOfTrustSettings) (*SvidDiskVerifier, error) {
+	verifier.domainCertPools = make(map[string]*x509.CertPool)
 
 	for domain, caPaths := range settings.domains{
 		// CHECK: is it alright if a pool has 0 certs in it? Can happen if settings have an empty list of paths
-		validator.domainCertPools[domain] = x509.NewCertPool()
+		verifier.domainCertPools[domain] = x509.NewCertPool()
 
 		for _,caPath := range caPaths {
 			logrus.Info("Loading " + caPath + " for domain " + domain)
-			if certs, err := validator.loadCertificatesFromDisk(caPath); err != nil {
+			if certs, err := verifier.loadCertificatesFromDisk(caPath); err != nil {
 				return nil, errors.New("Failed to load certificates from " + caPath + " for domain '" + domain + "' - " + err.Error())
 			} else {
 				for _,cert := range certs {
-					validator.domainCertPools[domain].AddCert(cert)
+					verifier.domainCertPools[domain].AddCert(cert)
 				}
 			}
 		}
 	}
 
-	return validator, nil
+	return verifier, nil
 }
 
 // loadCertificatesFromDisk returns a slice of all certificates found in the file at path. If any fail
-// to be parsed, or no certificagtes are found then validator method returns an error
-func (validator * SvidDiskValidator) loadCertificatesFromDisk(path string) ([]*x509.Certificate, error){
+// to be parsed, or no certificagtes are found then verifier method returns an error
+func (verifier * SvidDiskVerifier) loadCertificatesFromDisk(path string) ([]*x509.Certificate, error){
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, errors.New("Unable to open " + path + " for reading")
 	}
 
-	certs, err := validator.constructCertificatesFromPem(data)
+	certs, err := verifier.constructCertificatesFromPem(data)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (validator * SvidDiskValidator) loadCertificatesFromDisk(path string) ([]*x
 	return certs, nil
 }
 
-func (validator *SvidDiskValidator) constructCertificatesFromPem(pemData []byte) ([]*x509.Certificate, error){
+func (verifier *SvidDiskVerifier) constructCertificatesFromPem(pemData []byte) ([]*x509.Certificate, error){
 	// Read all the pem blocks from the full file data, decode will return 1 at a time and nil when complete
 	var pemBlocks []*pem.Block
 	for {
@@ -108,11 +108,11 @@ func (validator *SvidDiskValidator) constructCertificatesFromPem(pemData []byte)
 
 }
 
-func (validator *SvidDiskValidator) Validate(svid string) ([]*x509.Certificate, error){
+func (verifier *SvidDiskVerifier) Verify(svid string) ([]*x509.Certificate, error){
 
 	logrus.Info(svid)
 
-	svidCerts, err := validator.constructCertificatesFromPem([]byte(svid))
+	svidCerts, err := verifier.constructCertificatesFromPem([]byte(svid))
 	if err != nil {
 		return nil, errors.New("Failed to parse SVID - " + err.Error())
 	}
@@ -121,7 +121,7 @@ func (validator *SvidDiskValidator) Validate(svid string) ([]*x509.Certificate, 
 		return nil, errors.New("SVID is invalid")
 	}
 
-	_, err = spiffe.VerifyPeerCertificate(svidCerts, validator.domainCertPools, spiffe.ExpectAnyPeer())
+	_, err = spiffe.VerifyPeerCertificate(svidCerts, verifier.domainCertPools, spiffe.ExpectAnyPeer())
 	if nil != err {
 		return nil, errors.New("Unable to validate SVID against trust chain - " + err.Error())
 	}

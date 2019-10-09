@@ -1,7 +1,7 @@
 # SPIRE Vault Authentication Plugin
 
 SPIRE Vault Authentication Plugin is an authentication plugin for [Hashicorp Vault](https://www.vaultproject.io) which allows logging into Vault using a Spire provided SVID.
- 
+
 ## Menu
 
 - [Rationale](#rationale)
@@ -16,6 +16,13 @@ SPIRE Vault Authentication Plugin is an authentication plugin for [Hashicorp Vau
 ## Rationale
 
 This plugin exists to allow Spire authenticated workloads to authenticate with Vault using their Spire provided SVID, and then interact with Vault as they would if they authenticated with Vault via any other Vault supported authentication mechanism. 
+
+The intention is to support the following login scenerio
+
+```
+$> 
+$> vault write auth/spire/login svid="${SVID}"
+```
 
 The plugin has two operating modes: connected or disconnected from Spire.
 

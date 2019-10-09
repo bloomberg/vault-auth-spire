@@ -105,14 +105,14 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 	}
 
 	if nil != settings.SourceOfTrust.File {
-		validator, err := common.NewSvidDiskValidator(settings.SourceOfTrust.File)
+		verifier, err := common.NewSvidDiskVerifier(settings.SourceOfTrust.File)
 		if err != nil {
-			return nil, errors.New("vault-auth-spire: Failed to initialize SVID validator - " + err.Error())
+			return nil, errors.New("vault-auth-spire: Failed to initialize SVID verifier - " + err.Error())
 		}
 
-		spirePlugin.validator = validator
+		spirePlugin.verifier = verifier
 	} else {
-		return nil, errors.New("vault-auth-spire: No validator found in settings")
+		return nil, errors.New("vault-auth-spire: No verifier found in settings")
 	}
 
 	// Calls standard Vault plugin setup - magic happens here I bet :shrugs: but if it fails then we're gonna
@@ -144,7 +144,7 @@ func parseSettings() (*common.Settings, error) {
 type spirePlugin struct {
 	*framework.Backend
 	settings  *common.Settings
-	validator common.SvidValidator
+	verifier common.SvidVerifier
 }
 
 // pathAuthLogin is called when something attempts to login to Vault using this plugin's method (ie, spire). A login request
@@ -157,7 +157,7 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 		return nil, logical.ErrInvalidRequest
 	}
 
-	svidCerts, err := spirePlugin.validator.Validate(svid)
+	svidCerts, err := spirePlugin.verifier.Verify(svid)
 	if err != nil {
 		logrus.Debug("Provided svid could not be verified - " + err.Error())
 		return nil, logical.ErrPermissionDenied
