@@ -104,13 +104,14 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 		},
 	}
 
-	if nil != settings.SourceOfTrust.File {
-		verifier, err := common.NewSvidDiskVerifier(settings.SourceOfTrust.File)
-		if err != nil {
-			return nil, errors.New("vault-auth-spire: Failed to initialize SVID verifier - " + err.Error())
-		}
+	spirePlugin.verifier = common.NewSvidVerifier()
 
-		spirePlugin.verifier = verifier
+	if nil != settings.SourceOfTrust.File {
+		trustSource, err := common.NewTrustFileSource(settings.SourceOfTrust.File.Domains)
+		if err != nil {
+			return nil, errors.New("vault-auth-spire: Failed to initialize file TrustSource - " + err.Error())
+		}
+		spirePlugin.verifier.AddTrustSource(&trustSource)
 	} else {
 		return nil, errors.New("vault-auth-spire: No verifier found in settings")
 	}

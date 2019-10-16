@@ -20,7 +20,8 @@ import (
 	"crypto/x509"
 )
 
-type DomainTrustSource struct {
-	Domain string
-	Certificates []*x509.Certificate
+type TrustSource interface {
+
+	TrustedCertificates() map[string][]*x509.Certificate
+
 }

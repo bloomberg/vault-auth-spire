@@ -31,7 +31,7 @@ type SourceOfTrustSettings struct {
 }
 
 type FileSourceOfTrustSettings struct {
-	domains map[string][]string
+	Domains map[string][]string
 }
 
 type LogSettings struct {
@@ -128,7 +128,7 @@ func readFileSourceOfTrustSettings() (*FileSourceOfTrustSettings, error) {
 	}
 
 	fileSettings := new(FileSourceOfTrustSettings)
-	fileSettings.domains = viper.GetStringMapStringSlice("trustsource.file.domains")
+	fileSettings.Domains = viper.GetStringMapStringSlice("trustsource.file.domains")
 
 	return fileSettings, nil
 }

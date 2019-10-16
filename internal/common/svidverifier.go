@@ -18,33 +18,92 @@ package common
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"github.com/spiffe/go-spiffe/spiffe"
 	"go.dev.bloomberg.com/bbgo/go-logrus"
 )
 
+// SvidVerifier can be used to verify any SVID against a sets of trusted domains. The source of trust
+// used to verify the SVIDs against is contained within the `trustSources`, which contains all of the
+// sources of trust this SvidVerifier can use to verify against.
 type SvidVerifier struct {
-	// map[domain] = pool of trusted certificates for domain
-	trustedCertPools map[string]*x509.CertPool
+	trustSources []TrustSource
 }
 
+func NewSvidVerifier() SvidVerifier {
+	return SvidVerifier{
+		trustSources: make([]TrustSource, 0),
+	}
+}
+
+// AddTrustSource adds a new source of trust to this SvidVerifier
+func (verifier *SvidVerifier) AddTrustSource(source TrustSource) {
+	verifier.trustSources = append(verifier.trustSources, source)
+}
+
+// Verify will take the provided SVID and verify its source against any of the known sources of trust.
+// If the SVID was generated using any of the known sources of trust then the SVID will be considered
+// verified and all the certificates found inside the SVID will be returned. If the SVID cannot be
+// verified then an error will be returned.
 func (verifier *SvidVerifier) Verify(svid string) ([]*x509.Certificate, error){
 
-	logrus.Info(svid)
+	logrus.Debug("Beginning SVID verification")
 
-	svidCerts, err := verifier.constructCertificatesFromPem([]byte(svid))
-	if err != nil {
-		return nil, errors.New("Failed to parse SVID - " + err.Error())
-	}
-
+	logrus.Debug("Extracting certificates from provided SVID")
+	svidCerts := ExtractCertificatesFromPem([]byte(svid))
 	if len(svidCerts) == 0 {
-		return nil, errors.New("SVID is invalid")
+		return nil, errors.New("SVID is invalid - no valid certificates found")
 	}
 
-	_, err = spiffe.VerifyPeerCertificate(svidCerts, verifier.trustedCertPools, spiffe.ExpectAnyPeer())
+	logrus.Debug("Building map of domains -> trusted certificate pools")
+	trustedCertificatePools := make(map[string]*x509.CertPool,0)
+	for _, source := range verifier.trustSources {
+		for domain, certificates := range source.TrustedCertificates(){
+			pool, exists := trustedCertificatePools[domain]
+			if !exists {
+				pool = x509.NewCertPool()
+				trustedCertificatePools[domain] = pool
+			}
+			for _, certificate := range certificates{
+				pool.AddCert(certificate)
+			}
+		}
+	}
+
+	_, err := spiffe.VerifyPeerCertificate(svidCerts, trustedCertificatePools, spiffe.ExpectAnyPeer())
 	if nil != err {
 		return nil, errors.New("Unable to validate SVID against trust chain - " + err.Error())
 	}
 
 	return svidCerts, nil
+}
+
+// ExtractCertificatesFromPem takes an array of bytes representing a PEM file
+// and extracts any and all certificates located within that PEM data. This logic
+// in this method has been borrowed from x509.CertPool::AppendCertsFromPEM which
+// accepts the same argument, extracts, and appends the certificates to an
+// x509.CertPool.
+func ExtractCertificatesFromPem(pemCerts []byte) ([]*x509.Certificate){
+	var certificates []*x509.Certificate
+
+	for len(pemCerts) > 0 {
+		var block *pem.Block
+		block, pemCerts = pem.Decode(pemCerts)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			continue
+		}
+
+		certificates = append(certificates, cert)
+	}
+
+	return certificates
 }
