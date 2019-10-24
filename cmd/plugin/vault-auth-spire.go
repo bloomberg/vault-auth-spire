@@ -22,7 +22,7 @@ import (
 	"flag"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
-	"go.dev.bloomberg.com/bbgo/go-logrus"
+	"github.com/sirupsen/logrus"
 	"strings"
 	"vault-auth-spire/internal/common"
 

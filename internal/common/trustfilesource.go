@@ -19,7 +19,7 @@ package common
 import (
 	"crypto/x509"
 	"errors"
-	"go.dev.bloomberg.com/bbgo/go-logrus"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 )
 

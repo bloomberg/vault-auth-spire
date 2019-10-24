@@ -18,8 +18,8 @@ package common
 
 import (
 	"errors"
-	"go.dev.bloomberg.com/bbgo/go-logrus"
-	"go.dev.bloomberg.com/bbgo/go-lumberjack"
+	"github.com/sirupsen/logrus"
+	"github.com/natefinch/lumberjack"
 	"io/ioutil"
 	"os"
 	"path/filepath"

@@ -21,7 +21,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"github.com/spiffe/go-spiffe/spiffe"
-	"go.dev.bloomberg.com/bbgo/go-logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // SvidVerifier can be used to verify any SVID against a sets of trusted domains. The source of trust
