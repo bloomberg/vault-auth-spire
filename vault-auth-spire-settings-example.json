@@ -2,8 +2,9 @@
   "trustsource": {
     "file": {
       "domains": {
-        "spiffe://dev.bloomberg.com": "/tmp/dummy_upstream_ca.crt",
-        "spiffe://prod.bloomberg.com": "/tmp/dummy_upstream_ca.crt"
+        "spiffe://dev.foo.com": "/tmp/dummy_upstream_dev_ca.crt",
+        "spiffe://prod.foo.com": "/tmp/dummy_upstream_prod_ca.crt",
+        "spiffe://dev.baz.com": "/tmp/dummy_upstream_dev_ca.crt"
       }
     }
   },
