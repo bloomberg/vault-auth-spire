@@ -23,7 +23,7 @@ where `svid.0.pem` contains a valid SVID with some SpiffeID in it and the Spiffe
 
 During the login process the provided SVID will be verified against CA trust bundles known to the plugin. The SVID must have been generated using one of the known CA trust bundles. As per the rules in Spiffe regarding [trust domains and bundles](https://github.com/spiffe/spiffe/blob/master/standards/SPIFFE_Trust_Domain_and_Bundle.md), each trust domain known to the plugin will use 1 or more public CAs to verify SVIDs generated in that domain. The `vault-auth-spire` plugin supports the configuration of multiple trust domains, each with 1 or more root or intermediate CAs used to verify the SVIDs. This use of 1 or more CAs allows the plugin to support CA rotation.
 
-The plugin uses Trust Sources to manage from where it receives trusted CAs. There are two types of trust sources: read from file and pushed from spire. The trust sources are configured in the plugin settings and will be used to acquire trust CAs. The plugin can simultaneously acquire trust CAs from file and SPIRE.
+The plugin uses Trust Sources to manage from where it receives trusted CAs. There are two types of trust sources: read from file and pushed from SPIRE. The trust sources are configured in the plugin settings and will be used to acquire trust CAs. The plugin can simultaneously acquire trust CAs from file and SPIRE.
 
 ### Trust Sources
 
