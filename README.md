@@ -1,6 +1,6 @@
 # SPIRE Vault Authentication Plugin
 
-SPIRE Vault Authentication Plugin is an authentication plugin for [Hashicorp Vault](https://www.vaultproject.io) which allows logging into Vault using a Spire provided SVID.
+SPIRE Vault Authentication Plugin is an authentication plugin for [Hashicorp Vault](https://www.vaultproject.io) which allows logging into Vault using a SPIRE provided SVID.
 
 ## Menu
 
@@ -15,7 +15,7 @@ SPIRE Vault Authentication Plugin is an authentication plugin for [Hashicorp Vau
 
 ## Rationale
 
-This plugin exists to allow Spire authenticated workloads to authenticate with Vault using their Spire provided SVID, and then interact with Vault as they would if they authenticated with Vault via any other Vault supported authentication mechanism. The intention is to support the following login scenerio
+This plugin exists to allow SPIRE authenticated workloads to authenticate with Vault using their SPIRE provided SVID, and then interact with Vault as they would if they authenticated with Vault via any other Vault supported authentication mechanism. The intention is to support the following login scenerio
 ```
 $> vault write auth/spire/login svid="$(cat svid.0.pem)"
 ```
@@ -23,11 +23,11 @@ where `svid.0.pem` contains a valid SVID with some SpiffeID in it and the Spiffe
 
 During the login process the provided SVID will be verified against CA trust bundles known to the plugin. The SVID must have been generated using one of the known CA trust bundles. As per the rules in Spiffe regarding [trust domains and bundles](https://github.com/spiffe/spiffe/blob/master/standards/SPIFFE_Trust_Domain_and_Bundle.md), each trust domain known to the plugin will use 1 or more public CAs to verify SVIDs generated in that domain. The `vault-auth-spire` plugin supports the configuration of multiple trust domains, each with 1 or more root or intermediate CAs used to verify the SVIDs. This use of 1 or more CAs allows the plugin to support CA rotation.
 
-The plugin uses Trust Sources to manage from where it receives trusted CAs. There are two types of trust sources: read from file and pushed from spire. The trust sources are configured in the plugin settings and will be used to acquire trust CAs. The plugin can simultaneously acquire trust CAs from file and Spire.
+The plugin uses Trust Sources to manage from where it receives trusted CAs. There are two types of trust sources: read from file and pushed from SPIRE. The trust sources are configured in the plugin settings and will be used to acquire trust CAs. The plugin can simultaneously acquire trust CAs from file and SPIRE.
 
 ### Trust Sources
 
-A Trust Source provides a way for `vault-auth-spire` to acquire trust CAs. There are two types of trust sources: from file and Spire. Both types of trust sources can be used at the same time.
+A Trust Source provides a way for `vault-auth-spire` to acquire trust CAs. There are two types of trust sources: from file and SPIRE. Both types of trust sources can be used at the same time.
 
 #### File Trust Source
 
@@ -48,11 +48,11 @@ When using a File Trust Source one needs to map a Trust Domain to one or more fi
 
 Each domain can be provided with one or more trusted CA files and each CA file can contain one or more actual certificates. The full set of certificates found across all files will be used to verify SVIDs claiming to be within the configured domain. This structure allows the plugin to fully support certificate rotation.
 
-#### Spire Trust Source
+#### SPIRE Trust Source
 
 **This is still under development and some details are unknown at this time**
 
-When using the Spire Trust Source one needs to provide enough information for the plugin to connect to Spire and retreive its known trust CAs. The information is provided to the plugin via its settings file
+When using the SPIRE Trust Source one needs to provide enough information for the plugin to connect to SPIRE and retreive its known trust CAs. The information is provided to the plugin via its settings file
 
 ```json
 {
@@ -64,8 +64,8 @@ When using the Spire Trust Source one needs to provide enough information for th
 
 Current ideas for this trust source include
 
-1. Support connecting to multiple Spire instances (agents or servers) to allow for broad authentication, particularly where different systems are using the same Vault instance.
-2. Support saving the Spire provided CAs to disk so they can be used if the plugin is unable to connect to a Spire instance. This will help limit the blast radius of a failing Spire connection.
+1. Support connecting to multiple SPIRE instances (agents or servers) to allow for broad authentication, particularly where different systems are using the same Vault instance.
+2. Support saving the SPIRE provided CAs to disk so they can be used if the plugin is unable to connect to a SPIRE instance. This will help limit the blast radius of a failing SPIRE connection.
 
 ## Quick Start
 
