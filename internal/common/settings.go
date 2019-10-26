@@ -27,10 +27,10 @@ type Settings struct {
 }
 
 type SourceOfTrustSettings struct {
-	File *FileSourceOfTrustSettings
+	File *FileTrustSourceSettings
 }
 
-type FileSourceOfTrustSettings struct {
+type FileTrustSourceSettings struct {
 	Domains map[string][]string
 }
 
@@ -122,12 +122,12 @@ func readSourceOfTrustSettings() (*SourceOfTrustSettings, error) {
 	return sourceOfTrust, nil
 }
 
-func readFileSourceOfTrustSettings() (*FileSourceOfTrustSettings, error) {
+func readFileSourceOfTrustSettings() (*FileTrustSourceSettings, error) {
 	if !viper.IsSet("trustsource.file.domains") {
 		return nil, errors.New("trustsource.file.domains is required but not found")
 	}
 
-	fileSettings := new(FileSourceOfTrustSettings)
+	fileSettings := new(FileTrustSourceSettings)
 	fileSettings.Domains = viper.GetStringMapStringSlice("trustsource.file.domains")
 
 	return fileSettings, nil

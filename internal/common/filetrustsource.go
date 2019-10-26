@@ -23,13 +23,22 @@ import (
 	"io/ioutil"
 )
 
-type TrustFileSource struct {
+// FileTrustSource provides support for pem-file based trust sources. This trust source
+// should be provided a map of SPIFFE domains to pem files containing trust CAs. Each
+// domain can have 1 or more files assigned to it, and different domains can use the
+// same pem files. All certificates in the PEM file will be loaded.
+type FileTrustSource struct {
 	domainPaths map[string][]string
 	domainCertificates map[string][]*x509.Certificate
 }
 
-func NewTrustFileSource(domainPaths map[string][]string) (TrustFileSource, error){
-	source := TrustFileSource{
+// NewFileTrustSource constructs and loads an instance of FileTrustSource. This method
+// will attempt to load all certificates for all domains. Failure to read a file will
+// result in an error. Failure to parse a certificate from a PEM file will result in
+// that certificate being ignored. If no certificates are loaded from a PEM file then
+// an INFO message will be added to the log.
+func NewFileTrustSource(domainPaths map[string][]string) (FileTrustSource, error){
+	source := FileTrustSource{
 		domainPaths: domainPaths,
 		domainCertificates: make(map[string][]*x509.Certificate, 0),
 	}
@@ -41,11 +50,13 @@ func NewTrustFileSource(domainPaths map[string][]string) (TrustFileSource, error
 	return source, nil
 }
 
-func (source *TrustFileSource) TrustedCertificates() map[string][]*x509.Certificate {
+// TrustedCertificates returns our current maps of domains to certificates. This is a
+// method to allow for thread safety if we decide to support refreshing of the files.
+func (source *FileTrustSource) TrustedCertificates() map[string][]*x509.Certificate {
 	return source.domainCertificates
 }
 
-func (source *TrustFileSource) loadCertificates() (error){
+func (source *FileTrustSource) loadCertificates() (error){
 	for domain, paths := range source.domainPaths {
 		domainCertificates := make([]*x509.Certificate, 0)
 
