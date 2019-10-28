@@ -144,7 +144,7 @@ func parseSettings() (*common.Settings, error) {
 // spirePlugin is-a framework.Backend as per the embedded unnamed anon field
 type spirePlugin struct {
 	*framework.Backend
-	settings  *common.Settings
+	settings *common.Settings
 	verifier common.SvidVerifier
 }
 
