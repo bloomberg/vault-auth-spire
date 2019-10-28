@@ -107,7 +107,7 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 	spirePlugin.verifier = common.NewSvidVerifier()
 
 	if nil != settings.SourceOfTrust.File {
-		trustSource, err := common.NewTrustFileSource(settings.SourceOfTrust.File.Domains)
+		trustSource, err := common.NewFileTrustSource(settings.SourceOfTrust.File.Domains)
 		if err != nil {
 			return nil, errors.New("vault-auth-spire: Failed to initialize file TrustSource - " + err.Error())
 		}
