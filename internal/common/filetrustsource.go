@@ -23,10 +23,10 @@ import (
 	"io/ioutil"
 )
 
-// FileTrustSource provides support for pem-file based trust sources. This trust source
-// should be provided a map of SPIFFE domains to pem files containing trust CAs. Each
+// FileTrustSource provides support for PEM-file based trust sources. This trust source
+// should be provided a map of SPIFFE domains to PEM files containing trust CAs. Each
 // domain can have 1 or more files assigned to it, and different domains can use the
-// same pem files. All certificates in the PEM file will be loaded.
+// same PEM files. All certificates in the PEM file will be loaded.
 type FileTrustSource struct {
 	domainPaths map[string][]string
 	domainCertificates map[string][]*x509.Certificate
