@@ -18,8 +18,8 @@ package common
 
 import (
 	"errors"
-	"github.com/sirupsen/logrus"
 	"github.com/natefinch/lumberjack"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path/filepath"

@@ -21,7 +21,5 @@ import (
 )
 
 type TrustSource interface {
-
 	TrustedCertificates() map[string][]*x509.Certificate
-
 }

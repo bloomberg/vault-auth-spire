@@ -20,8 +20,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/spiffe/go-spiffe/spiffe"
 	"github.com/sirupsen/logrus"
+	"github.com/spiffe/go-spiffe/spiffe"
 )
 
 // SvidVerifier can be used to verify any SVID against a sets of trusted domains. The source of trust
@@ -46,7 +46,7 @@ func (verifier *SvidVerifier) AddTrustSource(source TrustSource) {
 // If the SVID was generated using any of the known sources of trust then the SVID will be considered
 // verified and all the certificates found inside the SVID will be returned. If the SVID cannot be
 // verified then an error will be returned.
-func (verifier *SvidVerifier) Verify(svid string) ([]*x509.Certificate, error){
+func (verifier *SvidVerifier) Verify(svid string) ([]*x509.Certificate, error) {
 
 	logrus.Debug("Beginning SVID verification")
 
@@ -57,15 +57,15 @@ func (verifier *SvidVerifier) Verify(svid string) ([]*x509.Certificate, error){
 	}
 
 	logrus.Debug("Building map of domains -> trusted certificate pools")
-	trustedCertificatePools := make(map[string]*x509.CertPool,0)
+	trustedCertificatePools := make(map[string]*x509.CertPool, 0)
 	for _, source := range verifier.trustSources {
-		for domain, certificates := range source.TrustedCertificates(){
+		for domain, certificates := range source.TrustedCertificates() {
 			pool, exists := trustedCertificatePools[domain]
 			if !exists {
 				pool = x509.NewCertPool()
 				trustedCertificatePools[domain] = pool
 			}
-			for _, certificate := range certificates{
+			for _, certificate := range certificates {
 				pool.AddCert(certificate)
 			}
 		}
@@ -84,7 +84,7 @@ func (verifier *SvidVerifier) Verify(svid string) ([]*x509.Certificate, error){
 // in this method has been borrowed from x509.CertPool::AppendCertsFromPEM which
 // accepts the same argument, extracts, and appends the certificates to an
 // x509.CertPool.
-func ExtractCertificatesFromPem(pemCerts []byte) ([]*x509.Certificate){
+func ExtractCertificatesFromPem(pemCerts []byte) []*x509.Certificate {
 	var certificates []*x509.Certificate
 
 	for len(pemCerts) > 0 {

@@ -28,7 +28,7 @@ import (
 // domain can have 1 or more files assigned to it, and different domains can use the
 // same PEM files. All certificates in the PEM file will be loaded.
 type FileTrustSource struct {
-	domainPaths map[string][]string
+	domainPaths        map[string][]string
 	domainCertificates map[string][]*x509.Certificate
 }
 
@@ -37,9 +37,9 @@ type FileTrustSource struct {
 // result in an error. Failure to parse a certificate from a PEM file will result in
 // that certificate being ignored. If no certificates are loaded from a PEM file then
 // an INFO message will be added to the log.
-func NewFileTrustSource(domainPaths map[string][]string) (FileTrustSource, error){
+func NewFileTrustSource(domainPaths map[string][]string) (FileTrustSource, error) {
 	source := FileTrustSource{
-		domainPaths: domainPaths,
+		domainPaths:        domainPaths,
 		domainCertificates: make(map[string][]*x509.Certificate, 0),
 	}
 
@@ -56,7 +56,7 @@ func (source *FileTrustSource) TrustedCertificates() map[string][]*x509.Certific
 	return source.domainCertificates
 }
 
-func (source *FileTrustSource) loadCertificates() (error){
+func (source *FileTrustSource) loadCertificates() error {
 	for domain, paths := range source.domainPaths {
 		domainCertificates := make([]*x509.Certificate, 0)
 
