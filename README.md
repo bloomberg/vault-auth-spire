@@ -19,7 +19,7 @@ This plugin exists to allow SPIRE authenticated workloads to authenticate with V
 ```
 $> vault write auth/spire/login svid="$(cat svid.0.pem)"
 ```
-where `svid.0.pem` contains a valid SVID with some SpiffeID in it and the SpiffeID will be used to determine which policies to apply during the Vault session.
+where `svid.0.pem` contains a valid SVID with some SpiffeID in it and the SpiffeID will be used to determine which policies to apply during the Vault session. Currently the plugin only supports [`X509-SVID`](https://github.com/spiffe/spiffe/blob/master/standards/X509-SVID.md#the-x509-spiffe-verifiable-identity-document) documents while future work will add support for [`JWT-SVID`](https://github.com/spiffe/spiffe/blob/master/standards/JWT-SVID.md#the-jwt-spiffe-verifiable-identity-document) documents.
 
 During the login process the provided SVID will be verified against CA trust bundles known to the plugin. The SVID must have been generated using one of the known CA trust bundles. As per the rules in Spiffe regarding [trust domains and bundles](https://github.com/spiffe/spiffe/blob/master/standards/SPIFFE_Trust_Domain_and_Bundle.md), each trust domain known to the plugin will use 1 or more public CAs to verify SVIDs generated in that domain. The `vault-auth-spire` plugin supports the configuration of multiple trust domains, each with 1 or more root or intermediate CAs used to verify the SVIDs. This use of 1 or more CAs allows the plugin to support CA rotation.
 
