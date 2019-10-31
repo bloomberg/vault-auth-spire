@@ -23,7 +23,6 @@ import (
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/sirupsen/logrus"
-	"strings"
 	"vault-auth-spire/internal/common"
 
 	"log"
@@ -158,18 +157,10 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 		return nil, logical.ErrInvalidRequest
 	}
 
-	svidCerts, err := spirePlugin.verifier.Verify(svid)
+	spiffeId, err := spirePlugin.verifier.VerifyAndExtractSpiffeId(svid)
 	if err != nil {
 		logrus.Debug("Provided svid could not be verified - " + err.Error())
 		return nil, logical.ErrPermissionDenied
-	}
-
-	uris := []string{}
-	for _, svidCert := range svidCerts {
-		for _, uri := range svidCert.URIs {
-			logrus.Info("Found URI: " + uri.String())
-			uris = append(uris, uri.String())
-		}
 	}
 
 	logrus.Info("The cert was verified")
@@ -182,10 +173,10 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 			},
 			Policies: []string{
 				//"Trust Bundles: " + strconv.Itoa(len(b.svidWatcher.TrustBundle)),
-				"Result: We've been verified and I found URIs: " + strings.Join(uris, ","),
+				"Result: We've been verified and I found SPIFFE ID: " + spiffeId,
 			},
 			Metadata: map[string]string{
-				"spiffeId": uris[0],
+				"spiffeId": spiffeId,
 			},
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: false,

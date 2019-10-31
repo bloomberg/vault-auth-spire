@@ -56,6 +56,8 @@ func (source *FileTrustSource) TrustedCertificates() map[string][]*x509.Certific
 	return source.domainCertificates
 }
 
+// For each domain/file mapping found in source.domainPaths, load the PEM and read all
+// certificates from the file.
 func (source *FileTrustSource) loadCertificates() error {
 	for domain, paths := range source.domainPaths {
 		domainCertificates := make([]*x509.Certificate, 0)
