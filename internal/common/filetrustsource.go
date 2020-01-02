@@ -19,8 +19,10 @@ package common
 import (
 	"crypto/x509"
 	"errors"
-	"github.com/sirupsen/logrus"
+	"fmt"
 	"io/ioutil"
+
+	"github.com/sirupsen/logrus"
 )
 
 // FileTrustSource provides support for PEM-file based trust sources. This trust source
@@ -63,9 +65,14 @@ func (source *FileTrustSource) loadCertificates() error {
 		domainCertificates := make([]*x509.Certificate, 0)
 
 		for _, path := range paths {
-			data, err := ioutil.ReadFile(path)
+			file, err := appFS.Open(path)
 			if err != nil {
-				return errors.New("Failed to load certificates for domain " + domain + " from file " + path + " - " + err.Error())
+				return fmt.Errorf("Could not open file %s while loading certificates: %v", path, err)
+			}
+			defer file.Close()
+			data, err := ioutil.ReadAll(file)
+			if err != nil {
+				return errors.New("Failed to load certificates for domain " + domain + " from file " + path + ": " + err.Error())
 			}
 
 			certificates := ExtractCertificatesFromPem(data)

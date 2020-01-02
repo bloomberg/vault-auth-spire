@@ -82,6 +82,8 @@ func (verifier *SvidVerifier) verifyAndExtractSpiffeIdFromX509(svid string) (str
 	svidPrincipalCert := svidCertChain[0]
 
 	logrus.Debug("Building map of domains -> trusted certificate pools")
+	// reads these in reverse order of priority, so in a list of [file, spire], if there are domain conflicts, spire domains will dominate
+	// TODO: pre-build and store this (regenerating when Spire truststore updates) so it doesn't have to be regenerated for each request
 	trustedCertificatePools := make(map[string]*x509.CertPool, 0)
 	for _, source := range verifier.trustSources {
 		for domain, certificates := range source.TrustedCertificates() {
