@@ -142,11 +142,12 @@ func parseSettings() (*common.Settings, error) {
 	settingsFlags.StringVar(&settingsFilePath, "settings-file", "", "Path to plugin settings")
 	settingsFlags.Parse(os.Args[1:])
 
-	if settings, err := common.ReadSettings(settingsFilePath); err != nil {
+	settings, err := common.ReadSettings(settingsFilePath)
+	if err != nil {
 		return nil, errors.New("vault-auth-spire: Failed to read settings from '" + settingsFilePath + "' - " + err.Error())
-	} else {
-		return settings, nil
 	}
+
+	return settings, nil
 }
 
 // spirePlugin is-a framework.Backend as per the embedded unnamed anon field
@@ -166,7 +167,7 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 		return nil, logical.ErrInvalidRequest
 	}
 
-	spiffeId, err := spirePlugin.verifier.VerifyAndExtractSpiffeId(svid)
+	spiffeID, err := spirePlugin.verifier.VerifyAndExtractSpiffeId(svid)
 	if err != nil {
 		logrus.Debug("Provided svid could not be verified - " + err.Error())
 		return nil, logical.ErrPermissionDenied
@@ -182,10 +183,10 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 			},
 			Policies: []string{
 				//"Trust Bundles: " + strconv.Itoa(len(b.svidWatcher.TrustBundle)),
-				"Result: We've been verified and I found SPIFFE ID: " + spiffeId,
+				"Result: We've been verified and I found SPIFFE ID: " + spiffeID,
 			},
 			Metadata: map[string]string{
-				"spiffeId": spiffeId,
+				"spiffeId": spiffeID,
 			},
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: false,

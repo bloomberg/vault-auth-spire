@@ -31,6 +31,7 @@ type SvidVerifier struct {
 	trustSources []TrustSource
 }
 
+// NewSvidVerifier creates a new SVID verifier
 func NewSvidVerifier() SvidVerifier {
 	return SvidVerifier{
 		trustSources: make([]TrustSource, 0),

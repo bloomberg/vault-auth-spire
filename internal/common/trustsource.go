@@ -20,6 +20,8 @@ import (
 	"crypto/x509"
 )
 
+// TrustSource is an interface that lets sources of trust return a map of SPIFFE domain
+// names to x509 certificates
 type TrustSource interface {
 	TrustedCertificates() map[string][]*x509.Certificate
 }
