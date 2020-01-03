@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/workload"
@@ -18,6 +19,8 @@ type SpireTrustSource struct {
 	domainCertificates map[string][]*x509.Certificate
 	spireClients       []*workload.X509SVIDClient
 	certLocation       string
+	updateChan         chan struct{}
+	updateTimeout      time.Duration
 }
 
 type certMap struct {
@@ -40,6 +43,8 @@ func NewSpireTrustSource(domainURLs map[string]string, certLocation string) (*Sp
 		domainURLs:         domainURLs,
 		domainCertificates: make(map[string][]*x509.Certificate, 0),
 		certLocation:       certLocation,
+		updateChan:         make(chan struct{}, 0),
+		updateTimeout:      5 * time.Second,
 	}
 
 	if certLocation != "" {
@@ -145,7 +150,7 @@ func (s *SpireTrustSource) startWatchers() error {
 		s.spireClients = append(s.spireClients, client)
 
 		logrus.Infof("Starting listener for %s.\n", id)
-		go client.Start()
+		client.Start()
 	}
 	return nil
 }
@@ -155,6 +160,10 @@ func (w *watcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 	err := w.source.writeCertFile()
 	if err != nil {
 		logrus.Warnf("Error writing to cert file: %v\n", err)
+	}
+	select {
+	case w.source.updateChan <- struct{}{}:
+	case <-time.After(w.source.updateTimeout):
 	}
 }
 

@@ -9,6 +9,7 @@ require (
 	github.com/hashicorp/vault/api v1.0.4
 	github.com/hashicorp/vault/sdk v0.1.13
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/prometheus/common v0.4.0
 	github.com/sirupsen/logrus v1.2.0
 	github.com/spf13/afero v1.1.2
 	github.com/spf13/viper v1.4.0
