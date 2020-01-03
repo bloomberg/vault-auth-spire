@@ -20,6 +20,19 @@ var (
 }`
 )
 
+// makeX509SVIDResponse is a convenience function for generating X509 responses
+func makeX509SVIDResponse(ca *spiffetest.CA, svid []*x509.Certificate, key crypto.Signer) *spiffetest.X509SVIDResponse {
+	return &spiffetest.X509SVIDResponse{
+		Bundle: ca.Roots(),
+		SVIDs: []spiffetest.X509SVID{
+			{
+				CertChain: svid,
+				Key:       key,
+			},
+		},
+	}
+}
+
 func TestInitalLoad(t *testing.T) {
 	appFS = afero.NewMemMapFs()
 
@@ -30,6 +43,8 @@ func TestInitalLoad(t *testing.T) {
 
 	source, err := NewSpireTrustSource(map[string]string{}, "vault-spire-certs.json")
 	require.NoError(t, err)
+	defer source.Stop()
+
 	certs := source.TrustedCertificates()["spiffe://example.org"]
 	require.Len(t, certs, 1)
 	assert.Equal(t, x509.MD5WithRSA, certs[0].SignatureAlgorithm)
@@ -44,18 +59,7 @@ func TestWriteCerts(t *testing.T) {
 	ca := spiffetest.NewCA(t)
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
 
-	makeX509SVIDResponse := func(svid []*x509.Certificate, key crypto.Signer) *spiffetest.X509SVIDResponse {
-		return &spiffetest.X509SVIDResponse{
-			Bundle: ca.Roots(),
-			SVIDs: []spiffetest.X509SVID{
-				{
-					CertChain: svid,
-					Key:       key,
-				},
-			},
-		}
-	}
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(svidFoo, keyFoo))
+	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(ca, svidFoo, keyFoo))
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
@@ -80,23 +84,13 @@ func TestSpireOverwrite(t *testing.T) {
 	ca := spiffetest.NewCA(t)
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
 
-	makeX509SVIDResponse := func(svid []*x509.Certificate, key crypto.Signer) *spiffetest.X509SVIDResponse {
-		return &spiffetest.X509SVIDResponse{
-			Bundle: ca.Roots(),
-			SVIDs: []spiffetest.X509SVID{
-				{
-					CertChain: svid,
-					Key:       key,
-				},
-			},
-		}
-	}
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(svidFoo, keyFoo))
+	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(ca, svidFoo, keyFoo))
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "vault-spire-certs.json")
 	require.NoError(t, err)
+	defer source.Stop()
 
 	time.Sleep(1 * time.Second) // wait for watcher to get new certs
 	assert.Equal(t, ca.Roots(), source.TrustedCertificates()["spiffe://example.org"])
@@ -110,43 +104,20 @@ func TestSpireReload(t *testing.T) {
 
 	ca := spiffetest.NewCA(t)
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
-
-	makeX509SVIDResponse := func(svid []*x509.Certificate, key crypto.Signer) *spiffetest.X509SVIDResponse {
-		return &spiffetest.X509SVIDResponse{
-			Bundle: ca.Roots(),
-			SVIDs: []spiffetest.X509SVID{
-				{
-					CertChain: svid,
-					Key:       key,
-				},
-			},
-		}
-	}
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(svidFoo, keyFoo))
+	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(ca, svidFoo, keyFoo))
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "")
 	require.NoError(t, err)
+	defer source.Stop()
 
 	time.Sleep(1 * time.Second) // wait for watcher to get new certs
 	assert.Equal(t, ca.Roots(), source.TrustedCertificates()["spiffe://example.org"])
 
 	caRot := spiffetest.NewCA(t)
 	svidFooRot, keyFooRot := ca.CreateX509SVID("spiffe://example.org/foo")
-
-	makeX509SVIDResponseRot := func(svid []*x509.Certificate, key crypto.Signer) *spiffetest.X509SVIDResponse {
-		return &spiffetest.X509SVIDResponse{
-			Bundle: caRot.Roots(),
-			SVIDs: []spiffetest.X509SVID{
-				{
-					CertChain: svid,
-					Key:       key,
-				},
-			},
-		}
-	}
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponseRot(svidFooRot, keyFooRot))
+	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(caRot, svidFooRot, keyFooRot))
 
 	time.Sleep(1 * time.Second) // wait for watcher to get new certs
 	assert.Equal(t, caRot.Roots(), source.TrustedCertificates()["spiffe://example.org"])
