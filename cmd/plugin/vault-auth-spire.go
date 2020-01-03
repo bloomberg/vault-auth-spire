@@ -114,14 +114,14 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 		spirePlugin.verifier.AddTrustSource(&trustSource)
 	}
 	if settings.SourceOfTrust.Spire != nil {
-		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.URLs, settings.SourceOfTrust.Spire.CertLocation)
+		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.SpireEndpoints, settings.SourceOfTrust.Spire.CertStorePath)
 		if err != nil {
-			return nil, errors.New("vault-auth-spire: Failed to initialize file TrustSource - " + err.Error())
+			return nil, errors.New("vault-auth-spire: Failed to initialize spire TrustSource - " + err.Error())
 		}
 		spirePlugin.verifier.AddTrustSource(trustSource)
 	}
 	if settings.SourceOfTrust.File == nil && settings.SourceOfTrust.Spire == nil {
-		return nil, errors.New("vault-auth-spire: No sources of truth in settings")
+		return nil, errors.New("vault-auth-spire: No sources of trust in settings")
 	}
 
 	// Calls standard Vault plugin setup - magic happens here I bet :shrugs: but if it fails then we're gonna

@@ -36,8 +36,8 @@ type FileTrustSourceSettings struct {
 }
 
 type SpireTrustSourceSettings struct {
-	URLs         map[string]string
-	CertLocation string
+	SpireEndpoints map[string]string
+	CertStorePath  string
 }
 
 type LogSettings struct {
@@ -144,12 +144,12 @@ func readSpireSourceOfTrustSettings() (*SpireTrustSourceSettings, error) {
 	}
 
 	spireSettings := new(SpireTrustSourceSettings)
-	spireSettings.URLs = viper.GetStringMapString("trustsource.spire.domains")
+	spireSettings.SpireEndpoints = viper.GetStringMapString("trustsource.spire.domains")
 	viper.SetDefault("trustsource.spire.certLocation", "/tmp/vault-spire-certs.json")
 	viper.SetDefault("trustsource.spire.storeEnabled", true)
-	spireSettings.CertLocation = viper.GetString("trustsource.spire.certLocation")
+	spireSettings.CertStorePath = viper.GetString("trustsource.spire.certLocation")
 	if !viper.GetBool("trustsource.spire.storeEnabled") {
-		spireSettings.CertLocation = ""
+		spireSettings.CertStorePath = ""
 	}
 
 	return spireSettings, nil
