@@ -167,7 +167,7 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 		return nil, logical.ErrInvalidRequest
 	}
 
-	spiffeID, err := spirePlugin.verifier.VerifyAndExtractSpiffeId(svid)
+	spiffeID, err := spirePlugin.verifier.VerifyAndExtractSpiffeID(svid)
 	if err != nil {
 		logrus.Debug("Provided svid could not be verified - " + err.Error())
 		return nil, logical.ErrPermissionDenied
