@@ -23,7 +23,7 @@ import (
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/sirupsen/logrus"
-	"vault-auth-spire/internal/common"
+	"github.com/bloomberg/vault-auth-spire/internal/common"
 
 	"log"
 	"os"

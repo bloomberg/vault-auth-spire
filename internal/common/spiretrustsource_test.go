@@ -21,8 +21,8 @@ var (
 )
 
 // makeX509SVIDResponse is a convenience function for generating X509 responses
-func makeX509SVIDResponse(ca *spiffetest.CA, svid []*x509.Certificate, key crypto.Signer) *spiffetest.X509SVIDResponse {
-	return &spiffetest.X509SVIDResponse{
+func setX509SVIDResponse(api *spiffetest.WorkloadAPI, ca *spiffetest.CA, svid []*x509.Certificate, key crypto.Signer) {
+	response := &spiffetest.X509SVIDResponse{
 		Bundle: ca.Roots(),
 		SVIDs: []spiffetest.X509SVID{
 			{
@@ -31,6 +31,7 @@ func makeX509SVIDResponse(ca *spiffetest.CA, svid []*x509.Certificate, key crypt
 			},
 		},
 	}
+	api.SetX509SVIDResponse(response)
 }
 
 func TestInitalLoad(t *testing.T) {
@@ -59,7 +60,7 @@ func TestWriteCerts(t *testing.T) {
 	ca := spiffetest.NewCA(t)
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
 
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(ca, svidFoo, keyFoo))
+	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
@@ -84,7 +85,7 @@ func TestSpireOverwrite(t *testing.T) {
 	ca := spiffetest.NewCA(t)
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
 
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(ca, svidFoo, keyFoo))
+	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
@@ -104,7 +105,7 @@ func TestSpireReload(t *testing.T) {
 
 	ca := spiffetest.NewCA(t)
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(ca, svidFoo, keyFoo))
+	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
@@ -117,7 +118,7 @@ func TestSpireReload(t *testing.T) {
 
 	caRot := spiffetest.NewCA(t)
 	svidFooRot, keyFooRot := ca.CreateX509SVID("spiffe://example.org/foo")
-	workloadAPI.SetX509SVIDResponse(makeX509SVIDResponse(caRot, svidFooRot, keyFooRot))
+	setX509SVIDResponse(workloadAPI, caRot, svidFooRot, keyFooRot)
 
 	time.Sleep(1 * time.Second) // wait for watcher to get new certs
 	assert.Equal(t, caRot.Roots(), source.TrustedCertificates()["spiffe://example.org"])

@@ -74,10 +74,8 @@ func (s *SpireTrustSource) parseCertFile() error {
 	if err != nil {
 		return fmt.Errorf("could not read cert file: %v", err)
 	}
-	fmt.Println(string(fileDat))
 	var certStruct certMap
-	err = json.Unmarshal(fileDat, &certStruct)
-	if err != nil {
+	if err = json.Unmarshal(fileDat, &certStruct); err != nil {
 		logrus.Warnf("Error unmarshaling cert file: %v\n", err)
 	}
 	for domain, encCerts := range certStruct.Certs {

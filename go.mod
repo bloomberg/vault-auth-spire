@@ -1,4 +1,4 @@
-module vault-auth-spire
+module github.com/bloomberg/vault-auth-spire
 
 go 1.12
 
