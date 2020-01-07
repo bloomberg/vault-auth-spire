@@ -51,6 +51,20 @@ func TestInitalLoad(t *testing.T) {
 	assert.Equal(t, "blog", certs[0].Subject.CommonName)
 }
 
+func TestInvalidURI(t *testing.T) {
+	_, err := NewSpireTrustSource(map[string]string{
+		"spirffe://example.org": "",
+	}, "certs/")
+	require.Error(t, err)
+}
+
+func TestInvalidDomain(t *testing.T) {
+	_, err := NewSpireTrustSource(map[string]string{
+		"spiffe://example.org/test": "",
+	}, "certs/")
+	require.Error(t, err)
+}
+
 func TestWriteCerts(t *testing.T) {
 	appFS = afero.NewMemMapFs()
 
