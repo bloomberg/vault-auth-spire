@@ -6,5 +6,8 @@ build: clean cmd/plugin/vault-auth-spire.go
 test:
 	go test ./...
 
+lint:
+	golint ./...
+
 clean:
 	@rm -f vault-auth-spire
