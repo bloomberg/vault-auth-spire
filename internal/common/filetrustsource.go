@@ -61,32 +61,10 @@ func (source *FileTrustSource) TrustedCertificates() map[string][]*x509.Certific
 // For each domain/file mapping found in source.domainPaths, load the PEM and read all
 // certificates from the file.
 func (source *FileTrustSource) loadCertificates() error {
-<<<<<<< HEAD
 	for domain := range source.domainPaths {
 		err := source.loadDomain(domain)
 		if err != nil {
 			return err
-=======
-	for domain, paths := range source.domainPaths {
-		domainCertificates := make([]*x509.Certificate, 0)
-
-		for _, path := range paths {
-			file, err := appFS.Open(path)
-			if err != nil {
-				return fmt.Errorf("Could not open file %s while loading certificates: %v", path, err)
-			}
-			defer file.Close()
-			data, err := ioutil.ReadAll(file)
-			if err != nil {
-				return errors.New("Failed to load certificates for domain " + domain + " from file " + path + ": " + err.Error())
-			}
-
-			certificates := ExtractCertificatesFromPem(data)
-			if len(certificates) == 0 || certificates == nil {
-				logrus.Info("Did not load any certificates for domain " + domain + " from file " + path)
-			}
-			domainCertificates = append(domainCertificates, certificates...)
->>>>>>> Add filetrustsource tests
 		}
 	}
 

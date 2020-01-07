@@ -21,25 +21,30 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Settings is the root set of settings for root plugin
 type Settings struct {
 	Log           *LogSettings
 	SourceOfTrust *SourceOfTrustSettings
 }
 
+// SourceOfTrustSettings holds settings for all source of truth providers
 type SourceOfTrustSettings struct {
 	File  *FileTrustSourceSettings
 	Spire *SpireTrustSourceSettings
 }
 
+// FileTrustSourceSettings holds a mapping of domains to certificate paths
 type FileTrustSourceSettings struct {
 	Domains map[string][]string
 }
 
+// SpireTrustSourceSettings holds spire endpoint locations and a path to store certs from Spire in
 type SpireTrustSourceSettings struct {
 	SpireEndpointURLs map[string]string
 	LocalBackupPath   string
 }
 
+// LogSettings holds relevant logging settings
 type LogSettings struct {
 	Filename   string
 	Level      string
@@ -53,6 +58,7 @@ func wrapError(err error) error {
 	return errors.New("parse-settings: " + err.Error())
 }
 
+// ReadSettings reads settings from JSON into config objects using Viper
 func ReadSettings(fromPath string) (*Settings, error) {
 	settings := new(Settings)
 

@@ -39,7 +39,7 @@ func TestValid(t *testing.T) {
 		Bytes: svidFoo[0].Raw,
 	}
 
-	id, err := verif.VerifyAndExtractSpiffeId(string(pem.EncodeToMemory(svidBlock)))
+	id, err := verif.VerifyAndExtractSpiffeID(string(pem.EncodeToMemory(svidBlock)))
 	assert.Equal(t, "spiffe://example.org/foo", id)
 }
 
@@ -63,7 +63,7 @@ func TestDifferentDomain(t *testing.T) {
 		Bytes: svidFoo[0].Raw,
 	}
 
-	_, err = verif.VerifyAndExtractSpiffeId(string(pem.EncodeToMemory(svidBlock)))
+	_, err = verif.VerifyAndExtractSpiffeID(string(pem.EncodeToMemory(svidBlock)))
 	assert.Error(t, err)
 }
 
@@ -88,6 +88,6 @@ func TestBadCA(t *testing.T) {
 		Bytes: svidFoo[0].Raw,
 	}
 
-	_, err = verif.VerifyAndExtractSpiffeId(string(pem.EncodeToMemory(svidBlock)))
+	_, err = verif.VerifyAndExtractSpiffeID(string(pem.EncodeToMemory(svidBlock)))
 	assert.Error(t, err)
 }
