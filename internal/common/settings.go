@@ -143,7 +143,7 @@ func readSpireSourceOfTrustSettings() (*SpireTrustSourceSettings, error) {
 		return nil, errors.New("trustsource.spire.domains is required but not found")
 	}
 
-	viper.SetDefault("trustsource.spire.certLocation", "/tmp/vault-spire-certs.json")
+	viper.SetDefault("trustsource.spire.certLocation", "/var/run/spire/certs/")
 	viper.SetDefault("trustsource.spire.storeEnabled", true)
 	spireSettings := &SpireTrustSourceSettings{
 		SpireEndpoints: viper.GetStringMapString("trustsource.spire.domains"),

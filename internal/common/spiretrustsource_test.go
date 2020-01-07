@@ -13,11 +13,6 @@ import (
 )
 
 const (
-	certJSON = `{
-"certs": {
-	"spiffe://example.org": ["MIIB4TCCAUoCCQCfmw3vMgPS5TANBgkqhkiG9w0BAQQFADA1MQswCQYDVQQGEwJBVTETMBEGA1UECBMKU29tZS1TdGF0ZTERMA8GA1UEChMITUQ1IEluYy4wHhcNMTUxMjAzMTkyOTMyWhcNMjkwODEyMTkyOTMyWjA1MQswCQYDVQQGEwJBVTETMBEGA1UECBMKU29tZS1TdGF0ZTERMA8GA1UEChMITUQ1IEluYy4wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGBANrq2nhLQj5mlXbpVX3QUPhfEm/vdEqPkoWtR/jRZIWm4WGfWpq/LKHJx2Pqwn+t117syN8l4U5unyAi1BJSXjBwPZNd7dXjcuJ+bRLV7FZ/iuvscfYyQQFTxan4TaJMd0x1HoNDbNbjHa02IyjjYE/r3mb/PIg+J2t5AZEh80lPAgMBAAEwDQYJKoZIhvcNAQEEBQADgYEAjGzp3K3ey/YfKHohf33yHHWd695HQxDAP+wYcs9/TAyLR+gJzJP7d18EcDDLJWVi7bhfa4EAD86di05azOh9kWSn4b3o9QYRGCSwGNnI3Zk0cwNKA49hZntKKiy22DhRk7JAHF01d6Bu3KkHkmENrtJ+zj/+159WAnUaqViorq4="]
-}
-}`
 	updateTimeout = 5 * time.Second
 )
 
@@ -38,18 +33,22 @@ func setX509SVIDResponse(api *spiffetest.WorkloadAPI, ca *spiffetest.CA, svid []
 func TestInitalLoad(t *testing.T) {
 	appFS = afero.NewMemMapFs()
 
-	afero.WriteFile(appFS, "vault-spire-certs.json", []byte(certJSON), 600)
+	afero.WriteFile(appFS, "certs/example.org.pem", []byte(leafCert), 600)
 
 	workloadAPI := spiffetest.NewWorkloadAPI(t, nil)
 	defer workloadAPI.Stop()
 
-	source, err := NewSpireTrustSource(map[string]string{}, "vault-spire-certs.json")
+	source, err := NewSpireTrustSource(map[string]string{
+		"spiffe://example.org": workloadAPI.Addr(),
+	}, "certs/")
 	require.NoError(t, err)
 	defer source.Stop()
 
 	certs := source.TrustedCertificates()["spiffe://example.org"]
 	require.Len(t, certs, 1)
-	assert.Equal(t, x509.MD5WithRSA, certs[0].SignatureAlgorithm)
+	assert.Equal(t, "US", certs[0].Subject.Country[0])
+	assert.Equal(t, "test1.acme.com", certs[0].Subject.Organization[0])
+	assert.Equal(t, "blog", certs[0].Subject.CommonName)
 }
 
 func TestWriteCerts(t *testing.T) {
@@ -65,20 +64,25 @@ func TestWriteCerts(t *testing.T) {
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
-	}, "vault-spire-certs.json")
+	}, "certs/")
 	require.NoError(t, err)
 
 	source.waitForUpdate(t)
 	source.Stop()
 
-	newSource, err := NewSpireTrustSource(map[string]string{}, "vault-spire-certs.json")
+	dummyWorkloadAPI := spiffetest.NewWorkloadAPI(t, nil)
+	defer dummyWorkloadAPI.Stop()
+
+	newSource, err := NewSpireTrustSource(map[string]string{
+		"spiffe://example.org": dummyWorkloadAPI.Addr(),
+	}, "certs/")
 	assert.Equal(t, ca.Roots(), newSource.TrustedCertificates()["spiffe://example.org"])
 }
 
 func TestSpireOverwrite(t *testing.T) {
 	appFS = afero.NewMemMapFs()
 
-	afero.WriteFile(appFS, "vault-spire-certs.json", []byte(certJSON), 600)
+	afero.WriteFile(appFS, "certs/example.org.pem", []byte(leafCert), 600)
 
 	workloadAPI := spiffetest.NewWorkloadAPI(t, nil)
 	defer workloadAPI.Stop()
@@ -90,7 +94,7 @@ func TestSpireOverwrite(t *testing.T) {
 
 	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
-	}, "vault-spire-certs.json")
+	}, "certs/")
 	require.NoError(t, err)
 	defer source.Stop()
 

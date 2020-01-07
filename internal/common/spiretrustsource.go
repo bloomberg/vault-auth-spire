@@ -2,11 +2,10 @@ package common
 
 import (
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -17,6 +16,7 @@ import (
 type SpireTrustSource struct {
 	domainURLs         map[string]string
 	domainCertificates map[string][]*x509.Certificate
+	fileBacking        *FileTrustSource
 	spireClients       []*workload.X509SVIDClient
 	certLocation       string
 	updateChan         chan struct{}
@@ -48,7 +48,7 @@ func NewSpireTrustSource(domainURLs map[string]string, certLocation string) (*Sp
 	}
 
 	if certLocation != "" {
-		if err := source.parseCertFile(); err != nil {
+		if err := source.initFileTrustSource(); err != nil {
 			return nil, err
 		}
 	}
@@ -65,73 +65,37 @@ func (s *SpireTrustSource) Stop() {
 	for _, client := range s.spireClients {
 		client.Stop()
 	}
-	s.writeCertFile()
 }
 
-func (s *SpireTrustSource) parseCertFile() error {
-	file, err := appFS.OpenFile(s.certLocation, os.O_RDWR|os.O_CREATE, 600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	fileDat, err := ioutil.ReadAll(file)
-	if err != nil {
-		return fmt.Errorf("could not read cert file: %v", err)
-	}
-	var certStruct certMap
-	if err = json.Unmarshal(fileDat, &certStruct); err != nil {
-		logrus.Warnf("Error unmarshaling cert file: %v\n", err)
-	}
-	for domain, encCerts := range certStruct.Certs {
-		decodedCerts := make([]*x509.Certificate, 0)
-		for _, certB64 := range encCerts {
-			encCert, err := base64.StdEncoding.DecodeString(certB64)
-			if err != nil {
-				logrus.Warnf("Could not base 64 decode string: %v\n", err)
-				continue
-			}
-			decodedCert, err := x509.ParseCertificate([]byte(encCert))
-			if err != nil {
-				logrus.Warnf("Could not decode certificate for domain %s: %v\n", domain, err)
-				continue
-			}
-			decodedCerts = append(decodedCerts, decodedCert)
+func (s *SpireTrustSource) initFileTrustSource() error {
+	re := regexp.MustCompile(`spiffe://(\S+)`)
+	domainPaths := make(map[string][]string, 0)
+	for uri := range s.domainURLs {
+		matches := re.FindStringSubmatch(uri)
+		if len(matches) < 2 {
+			return fmt.Errorf("expected domain of form spiffe://<trust_domain> but got %s", uri)
 		}
-		s.domainCertificates[domain] = decodedCerts
-	}
-	return nil
-}
-
-func (s *SpireTrustSource) writeCertFile() error {
-	if s.certLocation == "" {
-		return nil
-	}
-
-	certStruct := certMap{
-		Certs: make(map[string][]string, 0),
-	}
-
-	for domain, certObjs := range s.TrustedCertificates() {
-		toWrite := make([]string, 0)
-		for _, certObj := range certObjs {
-			marshalled := base64.StdEncoding.EncodeToString(certObj.Raw)
-			toWrite = append(toWrite, string(marshalled))
+		domain := matches[1]
+		if strings.Contains(domain, "/") {
+			return fmt.Errorf("expected domain without slash but got %s", domain)
 		}
-		certStruct.Certs[domain] = toWrite
+		certPath := s.certLocation + "/" + domain + ".pem"
+		domainPaths[uri] = []string{certPath}
+
+		f, err := appFS.OpenFile(certPath, os.O_CREATE, 0600)
+		if err != nil {
+			return fmt.Errorf("error when trying to open file %s: %v", certPath, err)
+		}
+		f.Close()
 	}
 
-	finalData, _ := json.Marshal(certStruct)
-
-	file, err := appFS.OpenFile(s.certLocation, os.O_RDWR|os.O_CREATE, 600)
+	var err error
+	s.fileBacking, err = NewFileTrustSource(domainPaths)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	_, err = file.Write(finalData)
-	if err != nil {
-		return err
-	}
+
+	s.domainCertificates = s.fileBacking.TrustedCertificates()
 
 	return nil
 }
@@ -156,10 +120,14 @@ func (s *SpireTrustSource) startWatchers() error {
 }
 
 func (w *watcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
-	w.source.domainCertificates[w.uri] = svids.Default().TrustBundle
-	err := w.source.writeCertFile()
-	if err != nil {
-		logrus.Warnf("Error writing to cert file: %v\n", err)
+	certs := svids.Default().TrustBundle
+	w.source.domainCertificates[w.uri] = certs
+	if w.source.certLocation != "" {
+		certPath := w.source.fileBacking.domainPaths[w.uri][0]
+		err := w.source.fileBacking.updateCertificates(certs, w.uri, certPath)
+		if err != nil {
+			logrus.Warnf("error writing to cert file: %v", err)
+		}
 	}
 	select {
 	case w.source.updateChan <- struct{}{}:

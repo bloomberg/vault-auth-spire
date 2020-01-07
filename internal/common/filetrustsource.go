@@ -18,9 +18,12 @@ package common
 
 import (
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -39,17 +42,17 @@ type FileTrustSource struct {
 // result in an error. Failure to parse a certificate from a PEM file will result in
 // that certificate being ignored. If no certificates are loaded from a PEM file then
 // an INFO message will be added to the log.
-func NewFileTrustSource(domainPaths map[string][]string) (FileTrustSource, error) {
+func NewFileTrustSource(domainPaths map[string][]string) (*FileTrustSource, error) {
 	source := FileTrustSource{
 		domainPaths:        domainPaths,
 		domainCertificates: make(map[string][]*x509.Certificate, 0),
 	}
 
 	if err := source.loadCertificates(); err != nil {
-		return source, err
+		return &source, err
 	}
 
-	return source, nil
+	return &source, nil
 }
 
 // TrustedCertificates returns our current maps of domains to certificates. This is a
@@ -58,32 +61,70 @@ func (source *FileTrustSource) TrustedCertificates() map[string][]*x509.Certific
 	return source.domainCertificates
 }
 
+func (source *FileTrustSource) updateCertificates(certs []*x509.Certificate, spiffeID, path string) error {
+	builder := strings.Builder{}
+	for _, cert := range certs {
+		block := &pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		}
+		builder.Write(pem.EncodeToMemory(block))
+	}
+
+	file, err := appFS.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(builder.String())
+	if err != nil {
+		return err
+	}
+
+	err = source.loadDomain(spiffeID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // For each domain/file mapping found in source.domainPaths, load the PEM and read all
 // certificates from the file.
 func (source *FileTrustSource) loadCertificates() error {
-	for domain, paths := range source.domainPaths {
-		domainCertificates := make([]*x509.Certificate, 0)
+	for domain := range source.domainPaths {
+		err := source.loadDomain(domain)
+		if err != nil {
+			return err
+		}
+	}
 
-		for _, path := range paths {
-			file, err := appFS.Open(path)
-			if err != nil {
-				return fmt.Errorf("Could not open file %s while loading certificates: %v", path, err)
-			}
-			defer file.Close()
-			data, err := ioutil.ReadAll(file)
-			if err != nil {
-				return errors.New("Failed to load certificates for domain " + domain + " from file " + path + ": " + err.Error())
-			}
+	return nil
+}
 
-			certificates := ExtractCertificatesFromPem(data)
-			if len(certificates) == 0 {
-				logrus.Info("Did not load any certificates for domain " + domain + " from file " + path)
-			}
-			domainCertificates = append(domainCertificates, certificates...)
+func (source *FileTrustSource) loadDomain(domain string) error {
+	paths := source.domainPaths[domain]
+	domainCertificates := make([]*x509.Certificate, 0)
+
+	for _, path := range paths {
+		file, err := appFS.Open(path)
+		if err != nil {
+			return fmt.Errorf("Could not open file %s while loading certificates: %v", path, err)
+		}
+		defer file.Close()
+		data, err := ioutil.ReadAll(file)
+		if err != nil {
+			return errors.New("Failed to load certificates for domain " + domain + " from file " + path + ": " + err.Error())
 		}
 
-		source.domainCertificates[domain] = domainCertificates
+		certificates := ExtractCertificatesFromPem(data)
+		if len(certificates) == 0 {
+			logrus.Info("Did not load any certificates for domain " + domain + " from file " + path)
+		}
+		domainCertificates = append(domainCertificates, certificates...)
 	}
+
+	source.domainCertificates[domain] = domainCertificates
 
 	return nil
 }

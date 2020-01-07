@@ -20,10 +20,10 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"github.com/bloomberg/vault-auth-spire/internal/common"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/sirupsen/logrus"
-	"github.com/bloomberg/vault-auth-spire/internal/common"
 
 	"log"
 	"os"
@@ -111,7 +111,7 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 		if err != nil {
 			return nil, errors.New("vault-auth-spire: Failed to initialize file TrustSource - " + err.Error())
 		}
-		spirePlugin.verifier.AddTrustSource(&trustSource)
+		spirePlugin.verifier.AddTrustSource(trustSource)
 	}
 	if settings.SourceOfTrust.Spire != nil {
 		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.SpireEndpoints, settings.SourceOfTrust.Spire.CertStorePath)
