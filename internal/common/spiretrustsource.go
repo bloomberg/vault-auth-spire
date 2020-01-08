@@ -124,7 +124,7 @@ func (w *workloadWatcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 	// 2. Update w.source.spireEndpoints[w.url].loadState = Loaded
 	// 3. write to w.source.updateChan
 	//
-	// if w.source.localBackupPath != ""
+	// if w.localStoragePath != ""
 	//   4. write certs to storage path from w.source.localBackupPath/[domain without spiffe:// part].pem
 
 	//certs := svids.Default().TrustBundle
