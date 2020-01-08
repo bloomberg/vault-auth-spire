@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -12,24 +13,42 @@ import (
 	"github.com/spiffe/go-spiffe/workload"
 )
 
+type SpireLoadState int
+
+const (
+	Pending SpireLoadState = iota
+	Loaded
+	LoadedFromBackup
+	Failed
+)
+
 // SpireTrustSource holds all necessary information to connect to a spire instance and store its certificates
+type SpireEndpoint struct {
+	domain    string
+	loadState SpireLoadState
+	spireUrl  string
+
+	client *workload.X509SVIDClient
+}
 type SpireTrustSource struct {
-	domainURLs         map[string]string
+	spireEndpoints map[string]*SpireEndpoint
+
+	localBackupDir string
+
+	updateChan    chan struct{}
+	updateTimeout time.Duration
+
 	domainCertificates map[string][]*x509.Certificate
-	fileBacking        *FileTrustSource
-	spireClients       []*workload.X509SVIDClient
-	certLocation       string
-	updateChan         chan struct{}
-	updateTimeout      time.Duration
 }
 
 type certMap struct {
 	Certs map[string][]string `json:"certs"`
 }
 
-type watcher struct {
-	uri    string
-	source *SpireTrustSource
+type workloadWatcher struct {
+	domain           string
+	source           *SpireTrustSource
+	localStoragePath string
 }
 
 // TrustedCertificates fulfills the TrustSource interface
@@ -38,103 +57,111 @@ func (s *SpireTrustSource) TrustedCertificates() map[string][]*x509.Certificate 
 }
 
 // NewSpireTrustSource creates a new trust source with connectivity to one or more spire instances.
-func NewSpireTrustSource(domainURLs map[string]string, certLocation string) (*SpireTrustSource, error) {
-	source := SpireTrustSource{
-		domainURLs:         domainURLs,
+func NewSpireTrustSource(spireEndpointUrls map[string]string, localBackupDir string) (*SpireTrustSource, error) {
+	source := &SpireTrustSource{
+		spireEndpoints:     make(map[string]*SpireEndpoint, 0),
+		localBackupDir:     localBackupDir,
 		domainCertificates: make(map[string][]*x509.Certificate, 0),
-		certLocation:       certLocation,
 		updateChan:         make(chan struct{}, 0),
 		updateTimeout:      5 * time.Second,
 	}
 
-	if certLocation != "" {
-		if err := source.initFileTrustSource(); err != nil {
-			return nil, err
+	for domain, spireUrl := range spireEndpointUrls {
+		localStoragePath := ""
+		if localBackupDir != "" {
+			localStoragePath = "" // TODO: pull out from domain
 		}
-	}
 
-	if err := source.startWatchers(); err != nil {
-		return nil, err
-	}
-
-	return &source, nil
-}
-
-// Stop stops all spire clients and writes out certs
-func (s *SpireTrustSource) Stop() {
-	for _, client := range s.spireClients {
-		client.Stop()
-	}
-}
-
-func (s *SpireTrustSource) initFileTrustSource() error {
-	re := regexp.MustCompile(`spiffe://(\S+)`)
-	domainPaths := make(map[string][]string, 0)
-	for uri := range s.domainURLs {
-		matches := re.FindStringSubmatch(uri)
-		if len(matches) < 2 {
-			return fmt.Errorf("expected domain of form spiffe://<trust_domain> but got %s", uri)
-		}
-		domain := matches[1]
-		if strings.Contains(domain, "/") {
-			return fmt.Errorf("expected domain without slash but got %s", domain)
-		}
-		certPath := s.certLocation + "/" + domain + ".pem"
-		domainPaths[uri] = []string{certPath}
-
-		f, err := appFS.OpenFile(certPath, os.O_CREATE, 0600)
+		client, err := workload.NewX509SVIDClient(
+			&workloadWatcher{
+				domain:           domain,
+				source:           source,
+				localStoragePath: localStoragePath,
+			},
+			workload.WithAddr(spireUrl),
+		)
 		if err != nil {
-			return fmt.Errorf("error when trying to open file %s: %v", certPath, err)
+			return nil, fmt.Errorf("failed to construct a new NewX509SVIDClient for %s - %v", spireUrl, err)
 		}
-		f.Close()
+
+		source.spireEndpoints[domain] = &SpireEndpoint{
+			domain:    domain,
+			loadState: Pending,
+			spireUrl:  spireUrl,
+			client:    client,
+		}
 	}
 
-	var err error
-	s.fileBacking, err = NewFileTrustSource(domainPaths)
-	if err != nil {
-		return err
+	for _, spireEndpoint := range source.spireEndpoints {
+		if err := spireEndpoint.client.Start(); err != nil {
+			return nil, fmt.Errorf("failed to start NewX509SVIDClient for domain %s - %v", spireEndpoint.domain, err)
+		}
 	}
 
-	s.domainCertificates = s.fileBacking.TrustedCertificates()
+	return source, nil
+}
+
+// Stop stops all spire clients
+func (s *SpireTrustSource) Stop() error {
+	errs := make([]string, 0)
+	for _, spireEndpoint := range s.spireEndpoints {
+		if err := spireEndpoint.client.Stop(); err != nil {
+			errs = append(errs, fmt.Sprintf("domain %s - %v", spireEndpoint.domain, err))
+		}
+	}
+
+	if len(errs) != 0 {
+		return fmt.Errorf("failed to stop NewX509SVIDClients: (%s)", strings.Join(errs, "),("))
+	}
 
 	return nil
 }
 
-func (s *SpireTrustSource) startWatchers() error {
-	for id, url := range s.domainURLs {
-		opts := workload.WithAddr(url)
-		watch := &watcher{
-			uri:    id,
-			source: s,
-		}
-		client, err := workload.NewX509SVIDClient(watch, opts)
-		if err != nil {
-			return err
-		}
-		s.spireClients = append(s.spireClients, client)
+func (w *workloadWatcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 
-		logrus.Infof("Starting listener for %s.\n", id)
-		client.Start()
-	}
-	return nil
+	// TODO:
+	// 1. Pull out certs from passed in svids and update w.source.domainCertificates
+	// 2. Update w.source.spireEndpoints[w.url].loadState = Loaded
+	// 3. write to w.source.updateChan
+	//
+	// if w.source.localBackupPath != ""
+	//   4. write certs to storage path from w.source.localBackupPath/[domain without spiffe:// part].pem
+
+	//certs := svids.Default().TrustBundle
+	//w.source.domainCertificates[w.uri] = certs
+	//if w.source.certLocation != "" {
+	//	certPath := w.source.fileBacking.domainPaths[w.uri][0]
+	//	err := w.source.fileBacking.updateCertificates(certs, w.uri, certPath)
+	//	if err != nil {
+	//		logrus.Warnf("error writing to cert file: %v", err)
+	//	}
+	//}
+	//select {
+	//case w.source.updateChan <- struct{}{}:
+	//case <-time.After(w.source.updateTimeout):
+	//}
 }
 
-func (w *watcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
-	certs := svids.Default().TrustBundle
-	w.source.domainCertificates[w.uri] = certs
-	if w.source.certLocation != "" {
-		certPath := w.source.fileBacking.domainPaths[w.uri][0]
-		err := w.source.fileBacking.updateCertificates(certs, w.uri, certPath)
-		if err != nil {
-			logrus.Warnf("error writing to cert file: %v", err)
+func (w *workloadWatcher) OnError(err error) {
+	if w.source.spireEndpoints[w.domain].loadState == Pending {
+		if w.localStoragePath != "" {
+			domainPaths := map[string][]string{
+				w.domain: []string{w.localStoragePath},
+			}
+
+			if fileTrustSource, err := NewFileTrustSource(domainPaths); err != nil {
+				// TODO: log error
+				w.source.spireEndpoints[w.domain].loadState = Failed
+			} else {
+				// TODO:
+				// 1. Pull out certs from fileTrustSource and update w.source.domainCertificates
+				// 2. Update w.source.spireEndpoints[w.url].loadState = Loaded
+			}
+		} else {
+			// TODO: log error
+			w.source.spireEndpoints[w.domain].loadState = Failed
 		}
 	}
-	select {
-	case w.source.updateChan <- struct{}{}:
-	case <-time.After(w.source.updateTimeout):
-	}
-}
 
-func (w *watcher) OnError(err error) {
-	logrus.Errorf("Error encountered by watcher with uri %s: %v\n", w.uri, err)
+	// if the state was already Loaded, LoadedFromBackup, or Failed then don't do anything
 }

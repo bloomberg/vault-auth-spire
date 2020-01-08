@@ -36,8 +36,8 @@ type FileTrustSourceSettings struct {
 }
 
 type SpireTrustSourceSettings struct {
-	SpireEndpoints map[string]string
-	CertStorePath  string
+	SpireEndpointUrls map[string]string
+	LocalBackupPath   string
 }
 
 type LogSettings struct {

@@ -114,7 +114,7 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 		spirePlugin.verifier.AddTrustSource(trustSource)
 	}
 	if settings.SourceOfTrust.Spire != nil {
-		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.SpireEndpoints, settings.SourceOfTrust.Spire.CertStorePath)
+		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.SpireEndpointUrls, settings.SourceOfTrust.Spire.LocalBackupPath)
 		if err != nil {
 			return nil, errors.New("vault-auth-spire: Failed to initialize spire TrustSource - " + err.Error())
 		}
