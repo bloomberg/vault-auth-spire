@@ -36,7 +36,7 @@ type FileTrustSourceSettings struct {
 }
 
 type SpireTrustSourceSettings struct {
-	SpireEndpointUrls map[string]string
+	SpireEndpointURLs map[string]string
 	LocalBackupPath   string
 }
 
@@ -143,14 +143,14 @@ func readSpireSourceOfTrustSettings() (*SpireTrustSourceSettings, error) {
 		return nil, errors.New("trustsource.spire.domains is required but not found")
 	}
 
-	viper.SetDefault("trustsource.spire.certLocation", "/var/run/spire/certs/")
+	viper.SetDefault("trustsource.spire.backupPath", "/var/run/spire/certs/")
 	viper.SetDefault("trustsource.spire.storeEnabled", true)
 	spireSettings := &SpireTrustSourceSettings{
-		SpireEndpoints: viper.GetStringMapString("trustsource.spire.domains"),
-		CertStorePath:  viper.GetString("trustsource.spire.certLocation"),
+		SpireEndpointURLs: viper.GetStringMapString("trustsource.spire.domains"),
+		LocalBackupPath:   viper.GetString("trustsource.spire.backupPath"),
 	}
 	if !viper.GetBool("trustsource.spire.storeEnabled") {
-		spireSettings.CertStorePath = ""
+		spireSettings.LocalBackupPath = ""
 	}
 
 	return spireSettings, nil

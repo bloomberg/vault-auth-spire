@@ -44,6 +44,8 @@ func TestInitalLoad(t *testing.T) {
 	require.NoError(t, err)
 	defer source.Stop()
 
+	source.waitForUpdate(t)
+
 	certs := source.TrustedCertificates()["spiffe://example.org"]
 	require.Len(t, certs, 1)
 	assert.Equal(t, "US", certs[0].Subject.Country[0])
@@ -90,6 +92,7 @@ func TestWriteCerts(t *testing.T) {
 	newSource, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": dummyWorkloadAPI.Addr(),
 	}, "certs/")
+	newSource.waitForUpdate(t)
 	assert.Equal(t, ca.Roots(), newSource.TrustedCertificates()["spiffe://example.org"])
 }
 

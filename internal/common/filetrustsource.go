@@ -18,12 +18,9 @@ package common
 
 import (
 	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -59,34 +56,6 @@ func NewFileTrustSource(domainPaths map[string][]string) (*FileTrustSource, erro
 // method to allow for thread safety if we decide to support refreshing of the files.
 func (source *FileTrustSource) TrustedCertificates() map[string][]*x509.Certificate {
 	return source.domainCertificates
-}
-
-func (source *FileTrustSource) updateCertificates(certs []*x509.Certificate, spiffeID, path string) error {
-	builder := strings.Builder{}
-	for _, cert := range certs {
-		block := &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		}
-		builder.Write(pem.EncodeToMemory(block))
-	}
-
-	file, err := appFS.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = file.WriteString(builder.String())
-	if err != nil {
-		return err
-	}
-
-	err = source.loadDomain(spiffeID)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // For each domain/file mapping found in source.domainPaths, load the PEM and read all
