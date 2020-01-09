@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+
 	"github.com/bloomberg/vault-auth-spire/internal/common"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -144,7 +146,7 @@ func parseSettings() (*common.Settings, error) {
 
 	settings, err := common.ReadSettings(settingsFilePath)
 	if err != nil {
-		return nil, errors.New("vault-auth-spire: Failed to read settings from '" + settingsFilePath + "' - " + err.Error())
+		return nil, fmt.Errorf("vault-auth-spire: Failed to read settings from %s: %v", settingsFilePath, err)
 	}
 
 	return settings, nil

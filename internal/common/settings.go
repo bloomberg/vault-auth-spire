@@ -54,10 +54,6 @@ type LogSettings struct {
 	Compress   bool
 }
 
-func wrapError(err error) error {
-	return errors.New("parse-settings: " + err.Error())
-}
-
 // ReadSettings reads settings from JSON into config objects using Viper
 func ReadSettings(fromPath string) (*Settings, error) {
 	settings := new(Settings)
@@ -68,17 +64,17 @@ func ReadSettings(fromPath string) (*Settings, error) {
 	// Load the config from disk at sourcePath
 	viper.SetConfigFile(fromPath)
 	if err = viper.ReadInConfig(); err != nil {
-		return nil, wrapError(err)
+		return nil, err
 	}
 
 	// Read logging settings
 	if settings.Log, err = readLogSettings(); err != nil {
-		return nil, wrapError(err)
+		return nil, err
 	}
 
 	// Read our source of trust settings
 	if settings.SourceOfTrust, err = readSourceOfTrustSettings(); err != nil {
-		return nil, wrapError(err)
+		return nil, err
 	}
 
 	return settings, nil
