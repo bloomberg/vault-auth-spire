@@ -88,7 +88,10 @@ func (source *FileTrustSource) loadDomain(domain string) error {
 
 		certificates := ExtractCertificatesFromPem(data)
 		if len(certificates) == 0 {
-			logrus.Info("Did not load any certificates for domain " + domain + " from file " + path)
+			logrus.WithFields(logrus.Fields{
+				"domain": domain,
+				"path":   path,
+			}).Info("Did not load any certificates from file")
 		}
 		domainCertificates = append(domainCertificates, certificates...)
 	}

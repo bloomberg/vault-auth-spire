@@ -1,6 +1,6 @@
 package common
 
-var (
+const (
 	leafCert = `
 -----BEGIN CERTIFICATE-----
 MIIE1DCCArygAwIBAgICEAAwDQYJKoZIhvcNAQELBQAwPzELMAkGA1UEBhMCVVMx

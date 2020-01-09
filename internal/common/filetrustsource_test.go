@@ -39,13 +39,15 @@ func TestDoubleCertificate(t *testing.T) {
 	exampleDomain := source.TrustedCertificates()["spiffe://example.org"]
 	require.Len(t, exampleDomain, 2)
 
-	assert.Equal(t, "US", exampleDomain[0].Subject.Country[0])
-	assert.Equal(t, "test1.acme.com", exampleDomain[0].Subject.Organization[0])
-	assert.Equal(t, "IntermediaetCA", exampleDomain[0].Subject.CommonName)
+	assert := assert.New(t)
 
-	assert.Equal(t, "US", exampleDomain[1].Subject.Country[0])
-	assert.Equal(t, "test1.acme.com", exampleDomain[1].Subject.Organization[0])
-	assert.Equal(t, "blog", exampleDomain[1].Subject.CommonName)
+	assert.Equal("US", exampleDomain[0].Subject.Country[0])
+	assert.Equal("test1.acme.com", exampleDomain[0].Subject.Organization[0])
+	assert.Equal("IntermediaetCA", exampleDomain[0].Subject.CommonName)
+
+	assert.Equal("US", exampleDomain[1].Subject.Country[0])
+	assert.Equal("test1.acme.com", exampleDomain[1].Subject.Organization[0])
+	assert.Equal("blog", exampleDomain[1].Subject.CommonName)
 }
 
 func TestBadFile(t *testing.T) {

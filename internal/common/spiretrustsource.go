@@ -153,12 +153,18 @@ func (w *workloadWatcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 		}
 		file, err := appFS.OpenFile(w.localStoragePath, os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
-			logrus.Warnf("could not open backup file for trust domain %s at %s: %v", w.domain, w.localStoragePath, err)
+			logrus.WithFields(logrus.Fields{
+				"domain": w.domain,
+				"path":   w.localStoragePath,
+			}).Warnf("could not open backup file for trust domain: %v", err)
 		} else {
 			defer file.Close()
 			_, err = file.WriteString(builder.String())
 			if err != nil {
-				logrus.Warnf("could not write to backup file for trust domain %s at %s: %v", w.domain, w.localStoragePath, err)
+				logrus.WithFields(logrus.Fields{
+					"domain": w.domain,
+					"path":   w.localStoragePath,
+				}).Warnf("could not write to backup file for trust domain: %v", err)
 			}
 		}
 	}
@@ -179,16 +185,22 @@ func (w *workloadWatcher) OnError(err error) {
 			}
 
 			if fileTrustSource, err := NewFileTrustSource(domainPaths); err != nil {
-				logrus.Warnf("could not load certs for domain %s from disk: %v", w.domain, err)
+				logrus.WithFields(logrus.Fields{
+					"domain": w.domain,
+				}).Warnf("could not load backup certs for from disk: %v", err)
 				w.source.spireEndpoints[w.domain].loadState = Failed
 			} else {
 				w.source.domainCertificates[w.domain] = fileTrustSource.TrustedCertificates()[w.domain]
 				w.source.spireEndpoints[w.domain].loadState = LoadedFromBackup
-				logrus.Infof("loaded certs for domain %s from disk", w.domain)
+				logrus.WithFields(logrus.Fields{
+					"domain": w.domain,
+				}).Infof("loaded backup certs from disk")
 			}
 		} else {
 			w.source.spireEndpoints[w.domain].loadState = Failed
-			logrus.Warnf("could not connect to spire server for domain %s and local storage disabled", w.domain)
+			logrus.WithFields(logrus.Fields{
+				"domain": w.domain,
+			}).Warn("could not connect to spire server and local storage disabled")
 		}
 	} else {
 		// if the state was already Loaded, LoadedFromBackup, or Failed then don't do anything
