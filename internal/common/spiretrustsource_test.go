@@ -30,7 +30,7 @@ func setX509SVIDResponse(api *spiffetest.WorkloadAPI, ca *spiffetest.CA, svid []
 	api.SetX509SVIDResponse(response)
 }
 
-func TestInitalLoad(t *testing.T) {
+func TestInitialLoad(t *testing.T) {
 	appFS = afero.NewMemMapFs()
 
 	afero.WriteFile(appFS, "certs/example.org.pem", []byte(leafCert), 600)
@@ -38,7 +38,7 @@ func TestInitalLoad(t *testing.T) {
 	workloadAPI := spiffetest.NewWorkloadAPI(t, nil)
 	defer workloadAPI.Stop()
 
-	source, err := NewSpireTrustSource(map[string]string{
+	source, err := NewSpireTestSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "certs/")
 	require.NoError(t, err)
@@ -54,14 +54,14 @@ func TestInitalLoad(t *testing.T) {
 }
 
 func TestInvalidURI(t *testing.T) {
-	_, err := NewSpireTrustSource(map[string]string{
+	_, err := NewSpireTestSource(map[string]string{
 		"spirffe://example.org": "",
 	}, "certs/")
 	require.Error(t, err)
 }
 
 func TestInvalidDomain(t *testing.T) {
-	_, err := NewSpireTrustSource(map[string]string{
+	_, err := NewSpireTestSource(map[string]string{
 		"spiffe://example.org/test": "",
 	}, "certs/")
 	require.Error(t, err)
@@ -78,7 +78,7 @@ func TestWriteCerts(t *testing.T) {
 
 	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
-	source, err := NewSpireTrustSource(map[string]string{
+	source, err := NewSpireTestSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "certs/")
 	require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestWriteCerts(t *testing.T) {
 	dummyWorkloadAPI := spiffetest.NewWorkloadAPI(t, nil)
 	defer dummyWorkloadAPI.Stop()
 
-	newSource, err := NewSpireTrustSource(map[string]string{
+	newSource, err := NewSpireTestSource(map[string]string{
 		"spiffe://example.org": dummyWorkloadAPI.Addr(),
 	}, "certs/")
 	newSource.waitForUpdate(t)
@@ -109,7 +109,7 @@ func TestSpireOverwrite(t *testing.T) {
 
 	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
-	source, err := NewSpireTrustSource(map[string]string{
+	source, err := NewSpireTestSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "certs/")
 	require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestSpireOverwrite(t *testing.T) {
 	assert.Equal(t, ca.Roots(), source.TrustedCertificates()["spiffe://example.org"])
 }
 
-func TestSpireReload(t *testing.T) {
+func TestSpireRotation(t *testing.T) {
 	appFS = afero.NewMemMapFs()
 
 	workloadAPI := spiffetest.NewWorkloadAPI(t, nil)
@@ -129,7 +129,7 @@ func TestSpireReload(t *testing.T) {
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
 	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
-	source, err := NewSpireTrustSource(map[string]string{
+	source, err := NewSpireTestSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "")
 	require.NoError(t, err)

@@ -5,6 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -42,10 +43,7 @@ type SpireTrustSource struct {
 	updateTimeout time.Duration
 
 	domainCertificates map[string][]*x509.Certificate
-}
-
-type certMap struct {
-	Certs map[string][]string `json:"certs"`
+	testing            bool
 }
 
 type workloadWatcher struct {
@@ -81,7 +79,7 @@ func NewSpireTrustSource(spireEndpointURLs map[string]string, localBackupDir str
 			if strings.Contains(domain, "/") {
 				return nil, fmt.Errorf("expected domain without slash but got %s", domain)
 			}
-			localStoragePath = localBackupDir + "/" + domain + ".pem"
+			localStoragePath = filepath.Join(localBackupDir, domain+".pem")
 		}
 
 		client, err := workload.NewX509SVIDClient(
@@ -111,6 +109,16 @@ func NewSpireTrustSource(spireEndpointURLs map[string]string, localBackupDir str
 	}
 
 	return source, nil
+}
+
+// NewSpireTestSource creates a new spire trust source with the test flag on.
+func NewSpireTestSource(spireEndpointURLs map[string]string, localBackupDir string) (*SpireTrustSource, error) {
+	ts, err := NewSpireTrustSource(spireEndpointURLs, localBackupDir)
+	if err != nil {
+		return nil, err
+	}
+	ts.testing = true
+	return ts, nil
 }
 
 // Stop stops all spire clients
@@ -155,9 +163,11 @@ func (w *workloadWatcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 		}
 	}
 
-	select {
-	case w.source.updateChan <- struct{}{}:
-	case <-time.After(w.source.updateTimeout):
+	if w.source.testing {
+		select {
+		case w.source.updateChan <- struct{}{}:
+		case <-time.After(w.source.updateTimeout):
+		}
 	}
 }
 
@@ -182,11 +192,12 @@ func (w *workloadWatcher) OnError(err error) {
 		}
 	} else {
 		// if the state was already Loaded, LoadedFromBackup, or Failed then don't do anything
-		w.source.spireEndpoints[w.domain].loadState = Failed
 	}
 
-	select {
-	case w.source.updateChan <- struct{}{}:
-	case <-time.After(w.source.updateTimeout):
+	if w.source.testing {
+		select {
+		case w.source.updateChan <- struct{}{}:
+		case <-time.After(w.source.updateTimeout):
+		}
 	}
 }
