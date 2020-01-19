@@ -1,0 +1,20 @@
+{
+  "trustsource": {
+    "spire": {
+      "certLocation": "/tmp/vault-spire-certs.json",
+      "storeEnabled": true,
+      "domains": {
+        "spiffe://dev.foo.com": "unix:///tmp/agent.sock"
+      }
+    }
+  },
+
+  "log": {
+    "filename": "/tmp/vault-auth-spire.log",
+    "level": "DEBUG",
+    "maxSize": 10,
+    "maxBackups": 4,
+    "maxAge": 14,
+    "compress": true
+  }
+}

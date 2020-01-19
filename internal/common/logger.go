@@ -54,6 +54,7 @@ func (u utcFormatter) Format(e *logrus.Entry) ([]byte, error) {
 	return u.formatter.Format(e)
 }
 
+// InitializeLogger creates a new logger with the specified settings
 func InitializeLogger(settings *Settings) error {
 	logDirectory := filepath.Dir(settings.Log.Filename)
 	if err := os.MkdirAll(logDirectory, 0755); err != nil {

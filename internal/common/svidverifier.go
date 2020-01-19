@@ -31,6 +31,7 @@ type SvidVerifier struct {
 	trustSources []TrustSource
 }
 
+// NewSvidVerifier creates a new SVID verifier
 func NewSvidVerifier() SvidVerifier {
 	return SvidVerifier{
 		trustSources: make([]TrustSource, 0),
@@ -42,26 +43,26 @@ func (verifier *SvidVerifier) AddTrustSource(source TrustSource) {
 	verifier.trustSources = append(verifier.trustSources, source)
 }
 
-// VerifyAndExtractSpiffeId will take the provided SVID and verify its source against any of the known
+// VerifyAndExtractSpiffeID will take the provided SVID and verify its source against any of the known
 // sources of trust. If the SVID was generated using any of the known sources of trust and adheres to
 // all required SPIFFE requirements for an SVID then the SVID will be considered verified and the
 // SPIFFE ID of the SVID will be returned. If the SVID cannot be verified then an error will
 // be returned.
-func (verifier *SvidVerifier) VerifyAndExtractSpiffeId(svid string) (string, error) {
+func (verifier *SvidVerifier) VerifyAndExtractSpiffeID(svid string) (string, error) {
 	logrus.Debug("Beginning SVID verification")
 
 	// right now we only support X509 verification
-	spiffeId, err := verifier.verifyAndExtractSpiffeIdFromX509(svid)
+	spiffeID, err := verifier.verifyAndExtractSpiffeIDFromX509(svid)
 	if err != nil {
 		return "", err
 	}
 
 	// SPIFFE validation requirements
-	if err := spiffe.ValidateID(spiffeId, spiffe.AllowAnyTrustDomainWorkload()); err != nil {
+	if err := spiffe.ValidateID(spiffeID, spiffe.AllowAnyTrustDomainWorkload()); err != nil {
 		return "", errors.New("SVID is invalid - invalid SPIFFE ID found - " + err.Error())
 	}
 
-	return spiffeId, nil
+	return spiffeID, nil
 }
 
 // VerifyAndExtractSpiffeIdFromX509 will take the provided X509-SVID and verify its source against any
@@ -71,7 +72,7 @@ func (verifier *SvidVerifier) VerifyAndExtractSpiffeId(svid string) (string, err
 // be returned. The SPIFFE ID of an X509-SVID is defined as the first SAN URI found in the first certificate
 // of the SVID. That is, if it contains multiple certificates then the first is the one containing the
 // 'caller' SPIFFE ID.
-func (verifier *SvidVerifier) verifyAndExtractSpiffeIdFromX509(svid string) (string, error) {
+func (verifier *SvidVerifier) verifyAndExtractSpiffeIDFromX509(svid string) (string, error) {
 	logrus.Debug("Beginning SVID X509 verification")
 
 	logrus.Debug("Extracting certificates from provided SVID")
@@ -82,6 +83,8 @@ func (verifier *SvidVerifier) verifyAndExtractSpiffeIdFromX509(svid string) (str
 	svidPrincipalCert := svidCertChain[0]
 
 	logrus.Debug("Building map of domains -> trusted certificate pools")
+	// reads these in reverse order of priority, so in a list of [file, spire], if there are domain conflicts, spire domains will dominate
+	// TODO: pre-build and store this (regenerating when Spire truststore updates) so it doesn't have to be regenerated for each request
 	trustedCertificatePools := make(map[string]*x509.CertPool, 0)
 	for _, source := range verifier.trustSources {
 		for domain, certificates := range source.TrustedCertificates() {

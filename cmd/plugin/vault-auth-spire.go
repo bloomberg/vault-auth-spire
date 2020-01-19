@@ -20,10 +20,12 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+
+	"github.com/bloomberg/vault-auth-spire/internal/common"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/sirupsen/logrus"
-	"vault-auth-spire/internal/common"
 
 	"log"
 	"os"
@@ -69,7 +71,7 @@ func standardVaultPluginInit() {
 func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (logical.Backend, error) {
 
 	settings, err := parseSettings()
-	if nil != err {
+	if err != nil {
 		return nil, err
 	}
 
@@ -105,14 +107,23 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 
 	spirePlugin.verifier = common.NewSvidVerifier()
 
-	if nil != settings.SourceOfTrust.File {
+	// must add these in reverse order of priority (spire settings will overwrite file settings)
+	if settings.SourceOfTrust.File != nil {
 		trustSource, err := common.NewFileTrustSource(settings.SourceOfTrust.File.Domains)
 		if err != nil {
 			return nil, errors.New("vault-auth-spire: Failed to initialize file TrustSource - " + err.Error())
 		}
-		spirePlugin.verifier.AddTrustSource(&trustSource)
-	} else {
-		return nil, errors.New("vault-auth-spire: No verifier found in settings")
+		spirePlugin.verifier.AddTrustSource(trustSource)
+	}
+	if settings.SourceOfTrust.Spire != nil {
+		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.SpireEndpointURLs, settings.SourceOfTrust.Spire.LocalBackupPath)
+		if err != nil {
+			return nil, errors.New("vault-auth-spire: Failed to initialize spire TrustSource - " + err.Error())
+		}
+		spirePlugin.verifier.AddTrustSource(trustSource)
+	}
+	if settings.SourceOfTrust.File == nil && settings.SourceOfTrust.Spire == nil {
+		return nil, errors.New("vault-auth-spire: No sources of trust in settings")
 	}
 
 	// Calls standard Vault plugin setup - magic happens here I bet :shrugs: but if it fails then we're gonna
@@ -133,11 +144,12 @@ func parseSettings() (*common.Settings, error) {
 	settingsFlags.StringVar(&settingsFilePath, "settings-file", "", "Path to plugin settings")
 	settingsFlags.Parse(os.Args[1:])
 
-	if settings, err := common.ReadSettings(settingsFilePath); err != nil {
-		return nil, errors.New("vault-auth-spire: Failed to read settings from '" + settingsFilePath + "' - " + err.Error())
-	} else {
-		return settings, nil
+	settings, err := common.ReadSettings(settingsFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("vault-auth-spire: Failed to read settings from %s: %v", settingsFilePath, err)
 	}
+
+	return settings, nil
 }
 
 // spirePlugin is-a framework.Backend as per the embedded unnamed anon field
@@ -157,7 +169,7 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 		return nil, logical.ErrInvalidRequest
 	}
 
-	spiffeId, err := spirePlugin.verifier.VerifyAndExtractSpiffeId(svid)
+	spiffeID, err := spirePlugin.verifier.VerifyAndExtractSpiffeID(svid)
 	if err != nil {
 		logrus.Debug("Provided svid could not be verified - " + err.Error())
 		return nil, logical.ErrPermissionDenied
@@ -173,10 +185,10 @@ func (spirePlugin *spirePlugin) pathAuthLogin(_ context.Context, req *logical.Re
 			},
 			Policies: []string{
 				//"Trust Bundles: " + strconv.Itoa(len(b.svidWatcher.TrustBundle)),
-				"Result: We've been verified and I found SPIFFE ID: " + spiffeId,
+				"Result: We've been verified and I found SPIFFE ID: " + spiffeID,
 			},
 			Metadata: map[string]string{
-				"spiffeId": spiffeId,
+				"spiffeId": spiffeID,
 			},
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: false,
