@@ -20,10 +20,10 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"github.com/bloomberg/vault-auth-spire/internal/common"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/sirupsen/logrus"
-	"vault-auth-spire/internal/common"
 
 	"log"
 	"os"
@@ -69,7 +69,7 @@ func standardVaultPluginInit() {
 func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (logical.Backend, error) {
 
 	settings, err := parseSettings()
-	if nil != err {
+	if err != nil {
 		return nil, err
 	}
 
@@ -105,14 +105,23 @@ func BackendFactory(ctx context.Context, backendConfig *logical.BackendConfig) (
 
 	spirePlugin.verifier = common.NewSvidVerifier()
 
-	if nil != settings.SourceOfTrust.File {
+	// must add these in reverse order of priority (spire settings will overwrite file settings)
+	if settings.SourceOfTrust.File != nil {
 		trustSource, err := common.NewFileTrustSource(settings.SourceOfTrust.File.Domains)
 		if err != nil {
 			return nil, errors.New("vault-auth-spire: Failed to initialize file TrustSource - " + err.Error())
 		}
-		spirePlugin.verifier.AddTrustSource(&trustSource)
-	} else {
-		return nil, errors.New("vault-auth-spire: No verifier found in settings")
+		spirePlugin.verifier.AddTrustSource(trustSource)
+	}
+	if settings.SourceOfTrust.Spire != nil {
+		trustSource, err := common.NewSpireTrustSource(settings.SourceOfTrust.Spire.SpireEndpointURLs, settings.SourceOfTrust.Spire.LocalBackupPath)
+		if err != nil {
+			return nil, errors.New("vault-auth-spire: Failed to initialize spire TrustSource - " + err.Error())
+		}
+		spirePlugin.verifier.AddTrustSource(trustSource)
+	}
+	if settings.SourceOfTrust.File == nil && settings.SourceOfTrust.Spire == nil {
+		return nil, errors.New("vault-auth-spire: No sources of trust in settings")
 	}
 
 	// Calls standard Vault plugin setup - magic happens here I bet :shrugs: but if it fails then we're gonna
