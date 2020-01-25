@@ -39,11 +39,11 @@ type SpireTrustSource struct {
 
 	localBackupDir string
 
-	updateChan    chan struct{}
-	updateTimeout time.Duration
+	certUpdateChan chan struct{}
+	diskUpdateChan chan struct{}
+	updateTimeout  time.Duration
 
 	domainCertificates map[string][]*x509.Certificate
-	testing            bool
 }
 
 type workloadWatcher struct {
@@ -63,7 +63,8 @@ func NewSpireTrustSource(spireEndpointURLs map[string]string, localBackupDir str
 		spireEndpoints:     make(map[string]*SpireEndpoint, 0),
 		localBackupDir:     localBackupDir,
 		domainCertificates: make(map[string][]*x509.Certificate, 0),
-		updateChan:         make(chan struct{}, 0),
+		certUpdateChan:     make(chan struct{}, 1),
+		diskUpdateChan:     make(chan struct{}, 1),
 		updateTimeout:      5 * time.Second,
 	}
 
@@ -111,16 +112,6 @@ func NewSpireTrustSource(spireEndpointURLs map[string]string, localBackupDir str
 	return source, nil
 }
 
-// NewSpireTestSource creates a new spire trust source with the test flag on.
-func NewSpireTestSource(spireEndpointURLs map[string]string, localBackupDir string) (*SpireTrustSource, error) {
-	ts, err := NewSpireTrustSource(spireEndpointURLs, localBackupDir)
-	if err != nil {
-		return nil, err
-	}
-	ts.testing = true
-	return ts, nil
-}
-
 // Stop stops all spire clients
 func (s *SpireTrustSource) Stop() error {
 	errs := make([]string, 0)
@@ -141,6 +132,11 @@ func (w *workloadWatcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 	certs := svids.Default().TrustBundle
 	w.source.domainCertificates[w.domain] = certs
 	w.source.spireEndpoints[w.domain].loadState = Loaded
+
+	select {
+	case w.source.certUpdateChan <- struct{}{}:
+	default:
+	}
 
 	if w.localStoragePath != "" {
 		builder := strings.Builder{}
@@ -163,11 +159,9 @@ func (w *workloadWatcher) UpdateX509SVIDs(svids *workload.X509SVIDs) {
 		}
 	}
 
-	if w.source.testing {
-		select {
-		case w.source.updateChan <- struct{}{}:
-		case <-time.After(w.source.updateTimeout):
-		}
+	select {
+	case w.source.diskUpdateChan <- struct{}{}:
+	default:
 	}
 }
 
@@ -194,10 +188,8 @@ func (w *workloadWatcher) OnError(err error) {
 		// if the state was already Loaded, LoadedFromBackup, or Failed then don't do anything
 	}
 
-	if w.source.testing {
-		select {
-		case w.source.updateChan <- struct{}{}:
-		case <-time.After(w.source.updateTimeout):
-		}
+	select {
+	case w.source.certUpdateChan <- struct{}{}:
+	default:
 	}
 }

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	updateTimeout = 5 * time.Second
+	updateTimeout = 15 * time.Second
 )
 
 // makeX509SVIDResponse is a convenience function for generating X509 responses
@@ -38,13 +38,13 @@ func TestInitialLoad(t *testing.T) {
 	workloadAPI := spiffetest.NewWorkloadAPI(t, nil)
 	defer workloadAPI.Stop()
 
-	source, err := NewSpireTestSource(map[string]string{
+	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "certs/")
 	require.NoError(t, err)
 	defer source.Stop()
 
-	source.waitForUpdate(t)
+	source.waitForCertUpdate(t)
 
 	certs := source.TrustedCertificates()["spiffe://example.org"]
 	require.Len(t, certs, 1)
@@ -54,14 +54,14 @@ func TestInitialLoad(t *testing.T) {
 }
 
 func TestInvalidURI(t *testing.T) {
-	_, err := NewSpireTestSource(map[string]string{
+	_, err := NewSpireTrustSource(map[string]string{
 		"spirffe://example.org": "",
 	}, "certs/")
 	require.Error(t, err)
 }
 
 func TestInvalidDomain(t *testing.T) {
-	_, err := NewSpireTestSource(map[string]string{
+	_, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org/test": "",
 	}, "certs/")
 	require.Error(t, err)
@@ -78,21 +78,21 @@ func TestWriteCerts(t *testing.T) {
 
 	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
-	source, err := NewSpireTestSource(map[string]string{
+	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "certs/")
 	require.NoError(t, err)
 
-	source.waitForUpdate(t)
+	source.waitForDiskUpdate(t)
 	source.Stop()
 
 	dummyWorkloadAPI := spiffetest.NewWorkloadAPI(t, nil)
 	defer dummyWorkloadAPI.Stop()
 
-	newSource, err := NewSpireTestSource(map[string]string{
+	newSource, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": dummyWorkloadAPI.Addr(),
 	}, "certs/")
-	newSource.waitForUpdate(t)
+	newSource.waitForCertUpdate(t)
 	assert.Equal(t, ca.Roots(), newSource.TrustedCertificates()["spiffe://example.org"])
 }
 
@@ -109,13 +109,13 @@ func TestSpireOverwrite(t *testing.T) {
 
 	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
-	source, err := NewSpireTestSource(map[string]string{
+	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "certs/")
 	require.NoError(t, err)
 	defer source.Stop()
 
-	source.waitForUpdate(t)
+	source.waitForCertUpdate(t)
 	assert.Equal(t, ca.Roots(), source.TrustedCertificates()["spiffe://example.org"])
 }
 
@@ -129,26 +129,34 @@ func TestSpireRotation(t *testing.T) {
 	svidFoo, keyFoo := ca.CreateX509SVID("spiffe://example.org/foo")
 	setX509SVIDResponse(workloadAPI, ca, svidFoo, keyFoo)
 
-	source, err := NewSpireTestSource(map[string]string{
+	source, err := NewSpireTrustSource(map[string]string{
 		"spiffe://example.org": workloadAPI.Addr(),
 	}, "")
 	require.NoError(t, err)
 	defer source.Stop()
 
-	source.waitForUpdate(t)
+	source.waitForCertUpdate(t)
 	assert.Equal(t, ca.Roots(), source.TrustedCertificates()["spiffe://example.org"])
 
 	caRot := spiffetest.NewCA(t)
 	svidFooRot, keyFooRot := ca.CreateX509SVID("spiffe://example.org/foo")
 	setX509SVIDResponse(workloadAPI, caRot, svidFooRot, keyFooRot)
 
-	source.waitForUpdate(t)
+	source.waitForCertUpdate(t)
 	assert.Equal(t, caRot.Roots(), source.TrustedCertificates()["spiffe://example.org"])
 }
 
-func (s *SpireTrustSource) waitForUpdate(t *testing.T) {
+func (s *SpireTrustSource) waitForCertUpdate(t *testing.T) {
 	select {
-	case <-s.updateChan:
+	case <-s.certUpdateChan:
+	case <-time.After(updateTimeout):
+		require.Fail(t, "Timeout exceeding waiting for updates.")
+	}
+}
+
+func (s *SpireTrustSource) waitForDiskUpdate(t *testing.T) {
+	select {
+	case <-s.diskUpdateChan:
 	case <-time.After(updateTimeout):
 		require.Fail(t, "Timeout exceeding waiting for updates.")
 	}
